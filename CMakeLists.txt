@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.1.0
+    VERSION 0.1.1
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
@@ -13,12 +13,18 @@ project(
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
+# ---- Declare dependencies ----
+
+find_package(git2wrap CONFIG REQUIRED)
+
 # ---- Declare library ----
 
 add_library(
     startgit_lib OBJECT
     source/lib.cpp
 )
+
+target_link_libraries(startgit_lib PUBLIC git2wrap::git2wrap)
 
 target_include_directories(
     startgit_lib ${warning_guard}
@@ -37,7 +43,7 @@ set_property(TARGET startgit_exe PROPERTY OUTPUT_NAME startgit)
 
 target_compile_features(startgit_exe PRIVATE cxx_std_20)
 
-target_link_libraries(startgit_exe PRIVATE startgit_lib)
+target_link_libraries(startgit_exe PRIVATE git2wrap startgit_lib)
 
 # ---- Install rules ----
 
