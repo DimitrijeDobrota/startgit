@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -10,13 +11,96 @@
 #include <git2wrap/repository.hpp>
 #include <git2wrap/revwalk.hpp>
 #include <git2wrap/signature.hpp>
+#include <hemplate/classes.hpp>
 #include <poafloc/poafloc.hpp>
 
 std::string long_to_string(int64_t date)
 {
   std::stringstream strs;
-  strs << std::put_time(std::gmtime(&date), "%Y-%m-%d %I:%M:%S %p");  // NOLINT
+  strs << std::put_time(std::gmtime(&date), "%Y-%m-%d %H:%M");  // NOLINT
   return strs.str();
+}
+
+void write_header(std::ostream& ost,
+                  const std::string& repo,
+                  const std::string& branch,
+                  const std::string& author)
+{
+  using namespace hemplate;  // NOLINT
+
+  const std::string name = repo + " - " + branch;
+
+  ost << html::doctype();
+  ost << html::html().set("lang", "en");
+  ost << html::head()
+             .add(html::title(name))
+             // Meta tags
+             .add(html::meta({{"charset", "UTF-8"}}))
+             .add(html::meta({{"name", "author"}, {"content", author}}))
+             .add(html::meta(
+                 {{"name", "description"}, {"content", "Content of " + name}}))
+             .add(
+                 html::meta({{"content", "width=device-width, initial-scale=1"},
+                             {"name", "viewport"}}))
+             // Stylesheets
+             .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
+                      .set("href", "/css/index.css"))
+             .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
+                      .set("href", "/css/colors.css"))
+             // Icons
+             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
+                      .set("sizes", "32x32")
+                      .set("href", "/img/favicon-32x32.png"))
+             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
+                      .set("sizes", "16x16")
+                      .set("href", "/img/favicon-16x16.png"));
+  ost << html::body();
+  ost << html::input()
+             .set("type", "checkbox")
+             .set("id", "theme_switch")
+             .set("class", "theme_switch");
+
+  ost << html::div().set("id", "content");
+  ost << html::main();
+  ost << html::label(" ")
+             .set("for", "theme_switch")
+             .set("class", "switch_label");
+}
+
+void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::table();
+  ost << html::thead();
+  ost << html::tr()
+             .add(html::td("Date"))
+             .add(html::td("Commit message"))
+             .add(html::td("Author"));
+  ost << html::thead();
+  ost << html::tbody();
+
+  while (const auto commit = rwalk.next()) {
+    ost << html::tr()
+               .add(html::td(long_to_string(commit.get_time())))
+               .add(html::td().add(
+                   html::a(commit.get_summary()).set("href", "./")))
+               .add(html::td(commit.get_author().get_name()));
+  }
+
+  ost << html::tbody();
+  ost << html::table();
+}
+
+void write_footer(std::ostream& ost)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::main();
+  ost << html::div();
+  ost << html::script(" ").set("src", "/scripts/main.js");
+  ost << html::body();
+  ost << html::html();
 }
 
 struct arguments_t
@@ -77,26 +161,28 @@ int main(int argc, char* argv[])
 
     const libgit2 libgit;
 
-    for (const auto& repo_name : args.repos) {
+    for (const auto& repo_path : args.repos) {
+      const std::string repo_name = repo_path.stem().string();
       repository repo = repository::open(
-          repo_name.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr);
+          repo_path.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr);
 
       for (auto it = repo.branch_begin(GIT_BRANCH_LOCAL);
            it != repo.branch_end();
            ++it)
       {
-        const object obj = repo.revparse(it->get_name().c_str());
-        std::cout << it->get_name() << " " << obj.get_id() << '\n';
+        const std::string filename = repo_name + "_" + it->get_name() + ".html";
+        std::ofstream ofs(args.output_dir / filename);
 
         revwalk rwalk(repo);
+
+        const object obj = repo.revparse(it->get_name().c_str());
         rwalk.push(obj.get_id());
 
-        while (const auto commit = rwalk.next()) {
-          std::cout << std::format("\t{}: {} ({})\n",
-                                   long_to_string(commit.get_time()),
-                                   commit.get_summary(),
-                                   commit.get_author().get_name());
-        }
+        write_header(ofs, repo_name, it->get_name(), "Dimitrije Dobrota");
+        write_commit_table(ofs, rwalk);
+        write_footer(ofs);
+
+        break;
       }
     }
   } catch (const git2wrap::error& err) {
