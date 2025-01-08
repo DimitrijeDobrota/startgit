@@ -16,13 +16,6 @@
 
 #include "repository.hpp"
 
-struct arguments_t
-{
-  std::filesystem::path output_dir = ".";
-  std::vector<std::filesystem::path> repos;
-  std::string url;
-};
-
 std::string long_to_string(int64_t date)
 {
   std::stringstream strs;
@@ -142,6 +135,13 @@ void write_footer(std::ostream& ost)
   ost << html::html();
 }
 
+struct arguments_t
+{
+  std::filesystem::path output_dir = ".";
+  std::vector<std::filesystem::path> repos;
+  std::string url;
+};
+
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
   auto* args = static_cast<arguments_t*>(parser->input());
@@ -164,9 +164,11 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 // NOLINTBEGIN
 // clang-format off
 static const poafloc::option_t options[] = {
-    // {0, 0, 0, 0, "Output mode", 1},
+    {0, 0, 0, 0, "Output mode", 1},
     {"output", 'o', "DIR", 0, "Output directory"},
-    {"url", 'u', "baseurl", 0, "Base URL to make links in the Atom feeds absolute"},
+    {0, 0, 0, 0, "General information", 2},
+    {"url", 'u', "BASEURL", 0, "Base URL to make links in the Atom feeds absolute"},
+    {0, 0, 0, 0, "Informational Options", -1},
     {0},
 };
 // clang-format on

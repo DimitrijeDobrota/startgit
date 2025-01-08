@@ -8,11 +8,11 @@ namespace startgit
 repository::repository(const std::filesystem::path& path)
     : m_repo(git2wrap::repository::open(
           path.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr))
+    , m_name(path.stem().string())
+    , m_url(read_file(path, "url"))
+    , m_owner(read_file(path, "owner"))
+    , m_description(read_file(path, "description"))
 {
-  m_name = path.stem().string();
-  read_file(m_owner, path, "owner");
-  read_file(m_description, path, "description");
-
   for (auto it = m_repo.branch_begin(GIT_BRANCH_LOCAL);
        it != m_repo.branch_end();
        ++it)
@@ -21,9 +21,8 @@ repository::repository(const std::filesystem::path& path)
   }
 }
 
-void repository::read_file(std::string& out,
-                           const std::filesystem::path& base,
-                           const char* file)
+std::string repository::read_file(const std::filesystem::path& base,
+                                  const char* file)
 {
   std::ifstream ifs(base / file);
 
@@ -32,10 +31,12 @@ void repository::read_file(std::string& out,
   }
 
   if (ifs.is_open()) {
-    std::getline(ifs, out, '\n');
-  } else {
-    out = "Unknown";
+    std::string res;
+    std::getline(ifs, res, '\n');
+    return res;
   }
+
+  return "Unknown";
 }
 
 }  // namespace startgit

@@ -25,14 +25,15 @@ public:
   const auto& get_branches() const { return m_branches; }
 
 private:
-  static void read_file(std::string& out,
-                        const std::filesystem::path& base,
-                        const char* file);
+  static std::string read_file(const std::filesystem::path& base,
+                               const char* file);
 
   git2wrap::repository m_repo;
 
   std::string m_name;
-  std::string m_owner = "Unknown";
+
+  std::string m_url;
+  std::string m_owner;
   std::string m_description;
 
   std::vector<branch> m_branches;
