@@ -14,6 +14,8 @@
 #include <hemplate/classes.hpp>
 #include <poafloc/poafloc.hpp>
 
+#include "repository.hpp"
+
 struct arguments_t
 {
   std::filesystem::path output_dir = ".";
@@ -31,7 +33,8 @@ std::string long_to_string(int64_t date)
 void write_header(std::ostream& ost,
                   const std::string& repo,
                   const std::string& branch,
-                  const std::string& author)
+                  const std::string& author,
+                  const std::string& description)
 {
   using namespace hemplate;  // NOLINT
 
@@ -45,7 +48,7 @@ void write_header(std::ostream& ost,
              .add(html::meta({{"charset", "UTF-8"}}))
              .add(html::meta({{"name", "author"}, {"content", author}}))
              .add(html::meta(
-                 {{"name", "description"}, {"content", "Content of " + name}}))
+                 {{"name", "description"}, {"content", description}}))
              .add(
                  html::meta({{"content", "width=device-width, initial-scale=1"},
                              {"name", "viewport"}}))
@@ -100,9 +103,7 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
 }
 
 void write_repo_table(std::ostream& ost,
-                      const arguments_t* args,
-                      const std::string& description,
-                      const std::string& owner)
+                      const std::vector<startgit::repository>& repos)
 {
   using namespace hemplate;  // NOLINT
 
@@ -116,14 +117,13 @@ void write_repo_table(std::ostream& ost,
   ost << html::thead();
   ost << html::tbody();
 
-  for (const auto& repo_path : args->repos) {
-    const std::string repo_name = repo_path.stem().string();
-
+  for (const auto& repo : repos) {
     ost << html::tr()
-               .add(html::td().add(html::a(repo_name).set(
-                   "href", repo_name + "/master_log.html")))
-               .add(html::td(description))
-               .add(html::td(owner))
+               .add(html::td().add(
+                   html::a(repo.get_name())
+                       .set("href", repo.get_name() + "/master_log.html")))
+               .add(html::td(repo.get_description()))
+               .add(html::td(repo.get_owner()))
                .add(html::td(""));
   }
 
@@ -153,7 +153,7 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
       args->url = arg;
       break;
     case poafloc::ARG:
-      args->repos.emplace_back(arg);
+      args->repos.emplace_back(std::filesystem::canonical(arg));
       break;
     default:
       break;
@@ -188,56 +188,61 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  using namespace git2wrap;  // NOLINT
+  try {
+    const git2wrap::libgit2 libgit;
+    std::vector<startgit::repository> repos;
 
-  const libgit2 libgit;
-
-  for (const auto& repo_path : args.repos) {
-    try {
-      const std::string repo_name = repo_path.stem().string();
-      repository repo(nullptr);
-
+    // open all repositories
+    for (const auto& repo_path : args.repos) {
       try {
-        repo = repository::open(
-            repo_path.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr);
+        repos.emplace_back(repo_path);
       } catch (const git2wrap::error& err) {
         std::cerr << std::format("Warning: {} is not a repository\n",
-                                 repo_name);
-        continue;
+                                 repo_path.string());
       }
+    }
 
-      for (auto it = repo.branch_begin(GIT_BRANCH_LOCAL);
-           it != repo.branch_end();
-           ++it)
-      {
-        const std::string filename = it->get_name() + "_log.html";
-        std::filesystem::create_directory(args.output_dir / repo_name);
-        std::ofstream ofs(args.output_dir / repo_name / filename);
+    for (const auto& repo : repos) {
+      for (const auto& branch : repo.get_branches()) {
+        std::filesystem::create_directory(args.output_dir / repo.get_name());
 
-        revwalk rwalk(repo);
+        const std::string filename = branch.get_name() + "_log.html";
+        std::ofstream ofs(args.output_dir / repo.get_name() / filename);
 
-        const object obj = repo.revparse(it->get_name().c_str());
+        git2wrap::revwalk rwalk(repo.get());
+
+        const git2wrap::object obj =
+            repo.get().revparse(branch.get_name().c_str());
         rwalk.push(obj.get_id());
 
-        write_header(ofs, repo_name, it->get_name(), "Dimitrije Dobrota");
+        write_header(ofs,
+                     repo.get_name(),
+                     branch.get_name(),
+                     repo.get_owner(),
+                     repo.get_description());
         write_commit_table(ofs, rwalk);
         write_footer(ofs);
       }
-
-    } catch (const git2wrap::error& err) {
-      std::cerr << std::format("({}:{}) Error {}/{}: {}\n",
-                               err.get_file(),
-                               err.get_line(),
-                               err.get_error(),
-                               err.get_klass(),
-                               err.get_message());
     }
 
+    // Build repo index
     std::ofstream ofs(args.output_dir / "index.html");
 
-    write_header(ofs, "Git repository", "~", "Dimitrije Dobrota");
-    write_repo_table(ofs, &args, "Desc", "Own");
+    write_header(ofs,
+                 "Git repository",
+                 "~",
+                 "Dimitrije Dobrota",
+                 "Collection of all public git repositories");
+    write_repo_table(ofs, repos);
     write_footer(ofs);
+
+  } catch (const git2wrap::error& err) {
+    std::cerr << std::format("({}:{}) Error {}/{}: {}\n",
+                             err.get_file(),
+                             err.get_line(),
+                             err.get_error(),
+                             err.get_klass(),
+                             err.get_message());
   }
 
   return 0;
