@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <string>
 
@@ -13,6 +14,7 @@
 #include <git2wrap/signature.hpp>
 #include <hemplate/classes.hpp>
 #include <poafloc/poafloc.hpp>
+#include <sys/stat.h>
 
 #include "repository.hpp"
 
@@ -22,6 +24,40 @@ std::string long_to_string(int64_t date)
   strs << std::put_time(std::gmtime(&date), "%Y-%m-%d %H:%M");  // NOLINT
   return strs.str();
 }
+
+// NOLINTBEGIN
+// clang-format off
+std::string filemode(git2wrap::filemode_t filemode)
+{
+  std::string mode(10, '-');
+
+  if (S_ISREG(filemode)) mode[0] = '-';
+  else if (S_ISBLK(filemode)) mode[0] = 'b';
+  else if (S_ISCHR(filemode)) mode[0] = 'c';
+  else if (S_ISDIR(filemode)) mode[0] = 'd';
+  else if (S_ISFIFO(filemode)) mode[0] = 'p';
+  else if (S_ISLNK(filemode)) mode[0] = 'l';
+  else if (S_ISSOCK(filemode)) mode[0] = 's';
+  else mode[0] = '?';
+
+  if (filemode & S_IRUSR) mode[1] = 'r';
+  if (filemode & S_IWUSR) mode[2] = 'w';
+  if (filemode & S_IXUSR) mode[3] = 'x';
+  if (filemode & S_IRGRP) mode[4] = 'r';
+  if (filemode & S_IWGRP) mode[5] = 'w';
+  if (filemode & S_IXGRP) mode[6] = 'x';
+  if (filemode & S_IROTH) mode[7] = 'r';
+  if (filemode & S_IWOTH) mode[8] = 'w';
+  if (filemode & S_IXOTH) mode[9] = 'x';
+
+  if (filemode & S_ISUID) mode[3] = (mode[3] == 'x') ? 's' : 'S';
+  if (filemode & S_ISGID) mode[6] = (mode[6] == 'x') ? 's' : 'S';
+  if (filemode & S_ISVTX) mode[9] = (mode[9] == 'x') ? 't' : 'T';
+
+  return mode;
+}
+// clang-format on
+// NOLINTEND
 
 void write_header(std::ostream& ost,
                   const std::string& repo,
@@ -102,18 +138,19 @@ void write_title(std::ostream& ost,
                             .add(html::span(repo.get_description())));
   ost << html::tr().add(
       html::td().add(html::span("git clone ")).add(html::a(repo.get_name())));
-  ost << html::tr().add(html::td()
-                            .add(html::a("Log").set("href", branch_name + "_log.html"))
-                            .add(html::span(" | "))
-                            .add(html::a("Files").set("href", branch_name + "_files.html"))
-                            .add(html::span(" | "))
-                            .add(html::a("Refs").set("href", branch_name + "_refs.html"))
-                            .add(html::span(" | "))
-                            .add(html::a("README").set("href", "./"))
-                            .add(html::span(" | "))
-                            .add(html::a("LICENCE").set("href", "./"))
-                            .add(html::span(" | "))
-                            .add(dropdown));
+  ost << html::tr().add(
+      html::td()
+          .add(html::a("Log").set("href", branch_name + "_log.html"))
+          .add(html::span(" | "))
+          .add(html::a("Files").set("href", branch_name + "_files.html"))
+          .add(html::span(" | "))
+          .add(html::a("Refs").set("href", branch_name + "_refs.html"))
+          .add(html::span(" | "))
+          .add(html::a("README").set("href", "./"))
+          .add(html::span(" | "))
+          .add(html::a("LICENCE").set("href", "./"))
+          .add(html::span(" | "))
+          .add(dropdown));
   ost << html::table();
 }
 
@@ -171,6 +208,54 @@ void write_repo_table(std::ostream& ost,
   ost << html::table();
 }
 
+void write_files_table(std::ostream& ost, const git2wrap::tree& tree)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::table();
+  ost << html::thead();
+  ost << html::tr()
+             .add(html::td("Mode"))
+             .add(html::td("Name"))
+             .add(html::td("File"));
+  ost << html::thead();
+  ost << html::tbody();
+
+  std::function<void(
+      std::ostream&, const git2wrap::tree&, const std::string& path)>
+      traverse;
+
+  traverse = [&](std::ostream& ost,
+                 const git2wrap::tree& tree,
+                 const std::string& path)
+  {
+    for (size_t i = 0; i < tree.get_entrycount(); i++) {
+      const auto entry = tree.get_entry(i);
+      const auto full_path =
+          (!path.empty() ? path + "/" : "") + entry.get_name();
+
+      switch (entry.get_type()) {
+        case GIT_OBJ_BLOB:
+          break;
+        case GIT_OBJ_TREE:
+          traverse(ost, entry.to_tree(), full_path);
+          continue;
+        default:
+          continue;
+      }
+
+      ost << html::tr()
+                 .add(html::td(filemode((entry.get_filemode()))))
+                 .add(html::td().add(html::a(full_path).set("href", "./")))
+                 .add(html::td("0"));
+    }
+  };
+  traverse(ost, tree, "");
+
+  ost << html::tbody();
+  ost << html::table();
+}
+
 void write_footer(std::ostream& ost)
 {
   using namespace hemplate;  // NOLINT
@@ -180,7 +265,8 @@ void write_footer(std::ostream& ost)
   ost << html::script(" ").set("src", "/scripts/main.js");
   ost << html::script(
       "function switchPage(value) { "
-      "history.replaceState(history.state, '', `${value}_log.html`); "
+      "history.replaceState(history.state, '', value + "
+      "window.location.href.substring(window.location.href.lastIndexOf('_'))); "
       "location.reload();}");
   ost << html::body();
   ost << html::html();
@@ -192,6 +278,48 @@ struct arguments_t
   std::vector<std::filesystem::path> repos;
   std::string url;
 };
+
+void write_log(const arguments_t& args,
+               const startgit::repository& repo,
+               const startgit::branch& branch)
+{
+  const std::string filename = branch.get_name() + "_log.html";
+  std::ofstream ofs(args.output_dir / repo.get_name() / filename);
+
+  git2wrap::revwalk rwalk(repo.get());
+
+  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
+  rwalk.push(obj.get_id());
+
+  write_header(ofs,
+               repo.get_name(),
+               branch.get_name(),
+               repo.get_owner(),
+               repo.get_description());
+  write_title(ofs, repo, branch.get_name());
+  write_commit_table(ofs, rwalk);
+  write_footer(ofs);
+}
+
+void write_files(const arguments_t& args,
+                 const startgit::repository& repo,
+                 const startgit::branch& branch)
+{
+  const std::string filename = branch.get_name() + "_files.html";
+  std::ofstream ofs(args.output_dir / repo.get_name() / filename);
+
+  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
+  const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
+
+  write_header(ofs,
+               repo.get_name(),
+               branch.get_name(),
+               repo.get_owner(),
+               repo.get_description());
+  write_title(ofs, repo, branch.get_name());
+  write_files_table(ofs, commit.get_tree());
+  write_footer(ofs);
+}
 
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
@@ -259,23 +387,8 @@ int main(int argc, char* argv[])
       for (const auto& branch : repo.get_branches()) {
         std::filesystem::create_directory(args.output_dir / repo.get_name());
 
-        const std::string filename = branch.get_name() + "_log.html";
-        std::ofstream ofs(args.output_dir / repo.get_name() / filename);
-
-        git2wrap::revwalk rwalk(repo.get());
-
-        const git2wrap::object obj =
-            repo.get().revparse(branch.get_name().c_str());
-        rwalk.push(obj.get_id());
-
-        write_header(ofs,
-                     repo.get_name(),
-                     branch.get_name(),
-                     repo.get_owner(),
-                     repo.get_description());
-        write_title(ofs, repo, branch.get_name());
-        write_commit_table(ofs, rwalk);
-        write_footer(ofs);
+        write_log(args, repo, branch);
+        write_files(args, repo, branch);
       }
     }
 
