@@ -70,6 +70,29 @@ void write_header(std::ostream& ost,
              .set("class", "switch_label");
 }
 
+void write_title(std::ostream& ost,
+                 const startgit::repository& repo,
+                 const std::string& branch_name)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::h1(repo.get_name());
+  ost << html::h2(repo.get_description());
+
+  ost << html::label("Branch: ").set("for", "branch");
+  ost << html::select(
+      {{"id", "branch"}, {"onChange", "switchPage(this.value)"}});
+  for (const auto& branch : repo.get_branches()) {
+    auto option = html::option(branch.get_name());
+    option.set("value", branch.get_name());
+    if (branch.get_name() == branch_name) {
+      option.set("selected", "true");
+    }
+    ost << option;
+  }
+  ost << html::select();
+}
+
 void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
 {
   using namespace hemplate;  // NOLINT
@@ -131,6 +154,10 @@ void write_footer(std::ostream& ost)
   ost << html::main();
   ost << html::div();
   ost << html::script(" ").set("src", "/scripts/main.js");
+  ost << html::script(
+      "function switchPage(value) { "
+      "history.replaceState(history.state, '', `${value}_log.html`); "
+      "location.reload();}");
   ost << html::body();
   ost << html::html();
 }
@@ -222,6 +249,7 @@ int main(int argc, char* argv[])
                      branch.get_name(),
                      repo.get_owner(),
                      repo.get_description());
+        write_title(ofs, repo, branch.get_name());
         write_commit_table(ofs, rwalk);
         write_footer(ofs);
       }
