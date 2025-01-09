@@ -18,6 +18,7 @@ public:
 
   const git2wrap::repository& get() const { return m_repo; }
 
+  const std::string& get_url() const { return m_url; }
   const std::string& get_name() const { return m_name; }
   const std::string& get_owner() const { return m_owner; }
   const std::string& get_description() const { return m_description; }

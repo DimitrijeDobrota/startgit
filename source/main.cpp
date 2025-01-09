@@ -137,19 +137,21 @@ void write_title(std::ostream& ost,
                             .add(html::h1(repo.get_name()))
                             .add(html::span(repo.get_description())));
   ost << html::tr().add(
-      html::td().add(html::span("git clone ")).add(html::a(repo.get_name())));
+      html::td()
+          .add(html::text("git clone "))
+          .add(html::a(repo.get_url()).set("href", repo.get_url())));
   ost << html::tr().add(
       html::td()
           .add(html::a("Log").set("href", branch_name + "_log.html"))
-          .add(html::span(" | "))
+          .add(html::text(" | "))
           .add(html::a("Files").set("href", branch_name + "_files.html"))
-          .add(html::span(" | "))
+          .add(html::text(" | "))
           .add(html::a("Refs").set("href", branch_name + "_refs.html"))
-          .add(html::span(" | "))
+          .add(html::text(" | "))
           .add(html::a("README").set("href", "./"))
-          .add(html::span(" | "))
+          .add(html::text(" | "))
           .add(html::a("LICENCE").set("href", "./"))
-          .add(html::span(" | "))
+          .add(html::text(" | "))
           .add(dropdown));
   ost << html::table();
 }
@@ -223,14 +225,10 @@ void write_files_table(std::ostream& ost, const git2wrap::tree& tree)
 
   std::function<void(
       std::ostream&, const git2wrap::tree&, const std::string& path)>
-      traverse;
-
-  traverse = [&](std::ostream& ost,
-                 const git2wrap::tree& tree,
-                 const std::string& path)
+      traverse = [&traverse](auto& l_ost, const auto& l_tree, const auto& path)
   {
-    for (size_t i = 0; i < tree.get_entrycount(); i++) {
-      const auto entry = tree.get_entry(i);
+    for (size_t i = 0; i < l_tree.get_entrycount(); i++) {
+      const auto entry = l_tree.get_entry(i);
       const auto full_path =
           (!path.empty() ? path + "/" : "") + entry.get_name();
 
@@ -238,16 +236,16 @@ void write_files_table(std::ostream& ost, const git2wrap::tree& tree)
         case GIT_OBJ_BLOB:
           break;
         case GIT_OBJ_TREE:
-          traverse(ost, entry.to_tree(), full_path);
+          traverse(l_ost, entry.to_tree(), full_path);
           continue;
         default:
           continue;
       }
 
-      ost << html::tr()
-                 .add(html::td(filemode((entry.get_filemode()))))
-                 .add(html::td().add(html::a(full_path).set("href", "./")))
-                 .add(html::td("0"));
+      l_ost << html::tr()
+                   .add(html::td(filemode((entry.get_filemode()))))
+                   .add(html::td().add(html::a(full_path).set("href", "./")))
+                   .add(html::td("0"));
     }
   };
   traverse(ost, tree, "");
