@@ -76,21 +76,45 @@ void write_title(std::ostream& ost,
 {
   using namespace hemplate;  // NOLINT
 
-  ost << html::h1(repo.get_name());
-  ost << html::h2(repo.get_description());
+  const auto dropdown = [&]()
+  {
+    auto span = html::span();
+    span.add(html::label("Branch: ").set("for", "branch"));
+    span.add(html::select(
+        {{"id", "branch"}, {"onChange", "switchPage(this.value)"}}));
 
-  ost << html::label("Branch: ").set("for", "branch");
-  ost << html::select(
-      {{"id", "branch"}, {"onChange", "switchPage(this.value)"}});
-  for (const auto& branch : repo.get_branches()) {
-    auto option = html::option(branch.get_name());
-    option.set("value", branch.get_name());
-    if (branch.get_name() == branch_name) {
-      option.set("selected", "true");
+    for (const auto& branch : repo.get_branches()) {
+      auto option = html::option(branch.get_name());
+      option.set("value", branch.get_name());
+      if (branch.get_name() == branch_name) {
+        option.set("selected", "true");
+      }
+      span.add(option);
     }
-    ost << option;
-  }
-  ost << html::select();
+
+    span.add(html::select());
+    return span;
+  }();
+
+  ost << html::table();
+  ost << html::tr().add(html::td()
+                            .add(html::h1(repo.get_name()))
+                            .add(html::span(repo.get_description())));
+  ost << html::tr().add(
+      html::td().add(html::span("git clone ")).add(html::a(repo.get_name())));
+  ost << html::tr().add(html::td()
+                            .add(html::a("Log").set("href", branch_name + "_log.html"))
+                            .add(html::span(" | "))
+                            .add(html::a("Files").set("href", branch_name + "_files.html"))
+                            .add(html::span(" | "))
+                            .add(html::a("Refs").set("href", branch_name + "_refs.html"))
+                            .add(html::span(" | "))
+                            .add(html::a("README").set("href", "./"))
+                            .add(html::span(" | "))
+                            .add(html::a("LICENCE").set("href", "./"))
+                            .add(html::span(" | "))
+                            .add(dropdown));
+  ost << html::table();
 }
 
 void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
