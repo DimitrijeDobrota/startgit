@@ -1,7 +1,6 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <functional>
 #include <iostream>
 #include <string>
 
@@ -12,6 +11,7 @@
 #include <git2wrap/repository.hpp>
 #include <git2wrap/revwalk.hpp>
 #include <git2wrap/signature.hpp>
+#include <git2wrap/tag.hpp>
 #include <hemplate/classes.hpp>
 #include <poafloc/poafloc.hpp>
 #include <sys/stat.h>
@@ -254,6 +254,78 @@ void write_files_table(std::ostream& ost, const git2wrap::tree& tree)
   ost << html::table();
 }
 
+void write_branch_table(std::ostream& ost,
+                        const startgit::repository& repo,
+                        const std::string& branch_name)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::table();
+  ost << html::thead();
+  ost << html::tr()
+             .add(html::td("&nbsp;"))
+             .add(html::td("Name"))
+             .add(html::td("Last commit date"))
+             .add(html::td("Author"));
+  ost << html::thead();
+  ost << html::tbody();
+
+  for (const auto& branch : repo.get_branches()) {
+    const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
+    const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
+
+    ost << html::tr()
+               .add(html::td(branch.get_name() == branch_name ? "*" : "&nbsp;"))
+               .add(html::td(branch.get_name()))
+               .add(html::td(long_to_string(commit.get_time())))
+               .add(html::td(commit.get_author().get_name()))
+               .add(html::td(""));
+  }
+
+  ost << html::tbody();
+  ost << html::table();
+}
+
+void write_tag_table(std::ostream& ost, const startgit::repository& repo)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::table();
+  ost << html::thead();
+  ost << html::tr()
+             .add(html::td("&nbsp;"))
+             .add(html::td("Name"))
+             .add(html::td("Last commit date"))
+             .add(html::td("Author"));
+  ost << html::thead();
+  ost << html::tbody();
+
+  struct payload_t
+  {
+    std::ostream& ost;  // NOLINT
+    const startgit::repository& repo;  // NOLINT
+  } payload(ost, repo);
+
+  auto callback = +[](const char*, git_oid* objid, void* payload_p)
+  {
+    auto payload = *reinterpret_cast<payload_t*>(payload_p);  // NOLINT
+    const auto tag = payload.repo.get().tag_lookup(objid);
+
+    payload.ost << html::tr()
+                       .add(html::td("&nbsp;"))
+                       .add(html::td(tag.get_name()))
+                       .add(html::td(
+                           long_to_string(tag.get_tagger().get_time().time)))
+                       .add(html::td(tag.get_tagger().get_name()));
+    return 0;
+  };
+
+  repo.get().tag_foreach(callback, &payload);
+
+  ost << html::tbody();
+  ost << html::table();
+}
+
 void write_footer(std::ostream& ost)
 {
   using namespace hemplate;  // NOLINT
@@ -316,6 +388,27 @@ void write_files(const arguments_t& args,
                repo.get_description());
   write_title(ofs, repo, branch.get_name());
   write_files_table(ofs, commit.get_tree());
+  write_footer(ofs);
+}
+
+void write_refs(const arguments_t& args,
+                const startgit::repository& repo,
+                const startgit::branch& branch)
+{
+  const std::string filename = branch.get_name() + "_refs.html";
+  std::ofstream ofs(args.output_dir / repo.get_name() / filename);
+
+  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
+  const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
+
+  write_header(ofs,
+               repo.get_name(),
+               branch.get_name(),
+               repo.get_owner(),
+               repo.get_description());
+  write_title(ofs, repo, branch.get_name());
+  write_branch_table(ofs, repo, branch.get_name());
+  write_tag_table(ofs, repo);
   write_footer(ofs);
 }
 
@@ -387,6 +480,7 @@ int main(int argc, char* argv[])
 
         write_log(args, repo, branch);
         write_files(args, repo, branch);
+        write_refs(args, repo, branch);
       }
     }
 
