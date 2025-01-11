@@ -82,10 +82,12 @@ void write_header(std::ostream& ost,
                  html::meta({{"content", "width=device-width, initial-scale=1"},
                              {"name", "viewport"}}))
              // Stylesheets
+             .add(
+                 html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
+                     .set("href", "https://dimitrijedobrota.com/css/index.css"))
              .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href", "/css/index.css"))
-             .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href", "/css/colors.css"))
+                      .set("href",
+                           "https://dimitrijedobrota.com/css/colors.css"))
              // Icons
              .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
                       .set("sizes", "32x32")
@@ -154,6 +156,7 @@ void write_title(std::ostream& ost,
           .add(html::text(" | "))
           .add(dropdown));
   ost << html::table();
+  ost << html::hr();
 }
 
 void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
@@ -197,13 +200,20 @@ void write_repo_table(std::ostream& ost,
   ost << html::tbody();
 
   for (const auto& repo : repos) {
-    ost << html::tr()
-               .add(html::td().add(
-                   html::a(repo.get_name())
-                       .set("href", repo.get_name() + "/master_log.html")))
-               .add(html::td(repo.get_description()))
-               .add(html::td(repo.get_owner()))
-               .add(html::td(""));
+    try {
+      const git2wrap::object obj = repo.get().revparse("master");
+      const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
+
+      ost << html::tr()
+                 .add(html::td().add(
+                     html::a(repo.get_name())
+                         .set("href", repo.get_name() + "/master_log.html")))
+                 .add(html::td(repo.get_description()))
+                 .add(html::td(repo.get_owner()))
+                 .add(html::td(
+                     long_to_string(commit.get_author().get_time().time)));
+    } catch (const git2wrap::error& error) {
+    }
   }
 
   ost << html::tbody();
@@ -260,6 +270,7 @@ void write_branch_table(std::ostream& ost,
 {
   using namespace hemplate;  // NOLINT
 
+  ost << html::h2("Branches");
   ost << html::table();
   ost << html::thead();
   ost << html::tr()
@@ -278,8 +289,7 @@ void write_branch_table(std::ostream& ost,
                .add(html::td(branch.get_name() == branch_name ? "*" : "&nbsp;"))
                .add(html::td(branch.get_name()))
                .add(html::td(long_to_string(commit.get_time())))
-               .add(html::td(commit.get_author().get_name()))
-               .add(html::td(""));
+               .add(html::td(commit.get_author().get_name()));
   }
 
   ost << html::tbody();
@@ -290,6 +300,7 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
 {
   using namespace hemplate;  // NOLINT
 
+  ost << html::h2("Tags");
   ost << html::table();
   ost << html::thead();
   ost << html::tr()
@@ -338,6 +349,19 @@ void write_footer(std::ostream& ost)
       "history.replaceState(history.state, '', value + "
       "window.location.href.substring(window.location.href.lastIndexOf('_'))); "
       "location.reload();}");
+  ost << html::style(
+      "  table { "
+      " margin-left: 0;"
+      " background-color: inherit;"
+      " border: none"
+      "} select { "
+      " color: var(--theme_fg1);"
+      " background-color: inherit;"
+      " border: 1px solid var(--theme_bg4);"
+      "} select option {"
+      " color: var(--theme_fg2) !important;"
+      " background-color: var(--theme_bg3) !important;"
+      "}");
   ost << html::body();
   ost << html::html();
 }
