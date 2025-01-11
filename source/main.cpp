@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 
 #include <git2.h>
 #include <git2wrap/error.hpp>
@@ -173,10 +174,13 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
   ost << html::tbody();
 
   while (const auto commit = rwalk.next()) {
+    const auto url =
+        std::format("./files/{}.html", commit.get_id().get_hex_string(22));
+
     ost << html::tr()
                .add(html::td(long_to_string(commit.get_time())))
                .add(html::td().add(
-                   html::a(commit.get_summary()).set("href", "./")))
+                   html::a(commit.get_summary()).set("href", url)))
                .add(html::td(commit.get_author().get_name()));
   }
 
@@ -213,6 +217,8 @@ void write_repo_table(std::ostream& ost,
                  .add(html::td(
                      long_to_string(commit.get_author().get_time().time)));
     } catch (const git2wrap::error& error) {
+      std::cerr << std::format("Warning: {} no master branch\n",
+                               repo.get_path().string());
     }
   }
 
@@ -320,7 +326,7 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
   auto callback = +[](const char*, git_oid* objid, void* payload_p)
   {
     auto payload = *reinterpret_cast<payload_t*>(payload_p);  // NOLINT
-    const auto tag = payload.repo.get().tag_lookup(objid);
+    const auto tag = payload.repo.get().tag_lookup(git2wrap::oid(objid));
 
     payload.ost << html::tr()
                        .add(html::td("&nbsp;"))
@@ -373,12 +379,12 @@ struct arguments_t
   std::string url;
 };
 
-void write_log(const arguments_t& args,
+void write_log(const std::filesystem::path& base,
                const startgit::repository& repo,
                const startgit::branch& branch)
 {
   const std::string filename = branch.get_name() + "_log.html";
-  std::ofstream ofs(args.output_dir / repo.get_name() / filename);
+  std::ofstream ofs(base / filename);
 
   git2wrap::revwalk rwalk(repo.get());
 
@@ -395,12 +401,12 @@ void write_log(const arguments_t& args,
   write_footer(ofs);
 }
 
-void write_files(const arguments_t& args,
+void write_files(const std::filesystem::path& base,
                  const startgit::repository& repo,
                  const startgit::branch& branch)
 {
   const std::string filename = branch.get_name() + "_files.html";
-  std::ofstream ofs(args.output_dir / repo.get_name() / filename);
+  std::ofstream ofs(base / filename);
 
   const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
   const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
@@ -415,12 +421,12 @@ void write_files(const arguments_t& args,
   write_footer(ofs);
 }
 
-void write_refs(const arguments_t& args,
+void write_refs(const std::filesystem::path& base,
                 const startgit::repository& repo,
                 const startgit::branch& branch)
 {
   const std::string filename = branch.get_name() + "_refs.html";
-  std::ofstream ofs(args.output_dir / repo.get_name() / filename);
+  std::ofstream ofs(base / filename);
 
   const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
   const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
@@ -434,6 +440,39 @@ void write_refs(const arguments_t& args,
   write_branch_table(ofs, repo, branch.get_name());
   write_tag_table(ofs, repo);
   write_footer(ofs);
+}
+
+void write_commits(const std::filesystem::path& base,
+                   const startgit::repository& repo)
+{
+  std::unordered_set<std::string> seen;
+
+  for (const auto& branch : repo.get_branches()) {
+    const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
+
+    git2wrap::revwalk rwalk(repo.get());
+    rwalk.push(obj.get_id());
+    while (const auto commit = rwalk.next()) {
+      const auto hash = commit.get_id().get_hex_string(22);
+
+      const auto [_, inserted] = seen.insert(hash);
+      if (!inserted) {
+        break;
+      }
+
+      const std::string filename = hash + ".html";
+      std::ofstream ofs(base / filename);
+
+      write_header(ofs,
+                   repo.get_name(),
+                   branch.get_name(),
+                   "Dimitrije Dobrota",
+                   commit.get_summary());
+      write_title(ofs, repo, branch.get_name());
+      ofs << hemplate::html::h2(commit.get_summary());
+      write_footer(ofs);
+    }
+  }
 }
 
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
@@ -499,13 +538,18 @@ int main(int argc, char* argv[])
     }
 
     for (const auto& repo : repos) {
-      for (const auto& branch : repo.get_branches()) {
-        std::filesystem::create_directory(args.output_dir / repo.get_name());
+      const std::filesystem::path base = args.output_dir / repo.get_name();
+      std::filesystem::create_directory(base);
 
-        write_log(args, repo, branch);
-        write_files(args, repo, branch);
-        write_refs(args, repo, branch);
+      for (const auto& branch : repo.get_branches()) {
+        write_log(base, repo, branch);
+        write_files(base, repo, branch);
+        write_refs(base, repo, branch);
       }
+
+      const std::filesystem::path files = base / "files";
+      std::filesystem::create_directory(files);
+      write_commits(files, repo);
     }
 
     // Build repo index

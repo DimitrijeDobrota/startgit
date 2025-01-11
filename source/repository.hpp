@@ -16,7 +16,8 @@ class repository
 public:
   explicit repository(const std::filesystem::path& path);
 
-  const git2wrap::repository& get() const { return m_repo; }
+  const auto& get() const { return m_repo; }
+  const auto& get_path() const { return m_path; }
 
   const std::string& get_url() const { return m_url; }
   const std::string& get_name() const { return m_name; }
@@ -29,6 +30,7 @@ private:
   static std::string read_file(const std::filesystem::path& base,
                                const char* file);
 
+  std::filesystem::path m_path;
   git2wrap::repository m_repo;
 
   std::string m_name;
