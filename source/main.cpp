@@ -27,6 +27,16 @@ std::string long_to_string(int64_t date)
   return strs.str();
 }
 
+std::string long_to_string(const git2wrap::time& time)
+{
+  std::stringstream strs;
+  strs << std::put_time(std::gmtime(&time.time),  // NOLINT
+                        "%a, %e %b %Y %H:%M:%S ");
+  strs << (time.offset < 0 ? '-' : '+');
+  strs << std::format("{:02}{:02}", time.offset / 60, time.offset % 60);
+  return strs.str();
+}
+
 // NOLINTBEGIN
 // clang-format off
 
@@ -185,7 +195,10 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
   ost << html::tr()
              .add(html::td("Date"))
              .add(html::td("Commit message"))
-             .add(html::td("Author"));
+             .add(html::td("Author"))
+             .add(html::td("Files"))
+             .add(html::td("+"))
+             .add(html::td("-"));
   ost << html::thead();
   ost << html::tbody();
 
@@ -193,11 +206,27 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
     const auto url =
         std::format("./commit/{}.html", commit.get_id().get_hex_string(22));
 
+    const auto ptree = commit.get_parentcount() > 0
+        ? commit.get_parent().get_tree()
+        : git2wrap::tree(nullptr, nullptr);
+
+    git2wrap::diff_options opts;
+    git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
+    opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
+        | GIT_DIFF_INCLUDE_TYPECHANGE;
+
+    const auto stats =
+        git2wrap::diff::tree_to_tree(commit.get_tree(), ptree, &opts)
+            .get_stats();
+
     ost << html::tr()
                .add(html::td(long_to_string(commit.get_time())))
                .add(html::td().add(
                    html::a(commit.get_summary()).set("href", url)))
-               .add(html::td(commit.get_author().get_name()));
+               .add(html::td(commit.get_author().get_name()))
+               .add(html::td(std::to_string(stats.files_changed())))
+               .add(html::td(std::to_string(stats.insertions())))
+               .add(html::td(std::to_string(stats.deletions())));
   }
 
   ost << html::tbody();
@@ -363,11 +392,11 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
 {
   using namespace hemplate;  // NOLINT
 
-  git2wrap::diff_options opts;
   const auto ptree = commit.get_parentcount() > 0
       ? commit.get_parent().get_tree()
       : git2wrap::tree(nullptr, nullptr);
 
+  git2wrap::diff_options opts;
   git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
   opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
       | GIT_DIFF_INCLUDE_TYPECHANGE;
@@ -453,8 +482,7 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
 
   ost << html::tr()
              .add(html::td().add(html::b("date")))
-             .add(
-                 html::td(long_to_string(commit.get_author().get_time().time)));
+             .add(html::td(long_to_string(commit.get_author().get_time())));
   ost << html::tbody() << html::table();
 
   ost << html::br() << html::p().set("style", "white-space: pre;");
