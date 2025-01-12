@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include <git2.h>
+#include <git2wrap/diff.hpp>
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
 #include <git2wrap/object.hpp>
@@ -28,6 +29,21 @@ std::string long_to_string(int64_t date)
 
 // NOLINTBEGIN
 // clang-format off
+
+void xmlencode(std::ostream& ost, const std::string& s)
+{
+    for (const char c: s) {
+        switch(c) {
+        case '<':  ost << "&lt;"; break;
+        case '>':  ost << "&gt;"; break;
+        case '\'': ost << "&#39;"; break;
+        case '&':  ost << "&amp;"; break;
+        case '"':  ost << "&quot;"; break;
+        default:   ost << c;
+        }
+    }
+}
+
 std::string filemode(git2wrap::filemode_t filemode)
 {
   std::string mode(10, '-');
@@ -343,6 +359,79 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
   ost << html::table();
 }
 
+void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
+{
+  using namespace hemplate;  // NOLINT
+
+  if (commit.get_parentcount() == 0) {
+    ost << "last" << std::endl;
+    return;
+  }
+
+  git2wrap::diff_options opts;
+
+  git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
+  opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
+      | GIT_DIFF_INCLUDE_TYPECHANGE;
+
+  const auto diff = git2wrap::diff::tree_to_tree(
+      commit.get_tree(), commit.get_parent().get_tree(), &opts);
+
+  const auto file_cb =
+      +[](const git_diff_delta* delta, float progress, void* payload)
+  {
+    auto& ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
+
+    ost << html::h3();
+    ost << std::format(
+        "diff --git a/{} b/{}", delta->old_file.path, delta->new_file.path);
+    ost << html::h3();
+    return 0;
+  };
+
+  const auto hunk_cb =
+      +[](const git_diff_delta* delta, const git_diff_hunk* hunk, void* payload)
+  {
+    auto& ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
+    const std::string header(hunk->header);  // NOLINT
+
+    ost << html::h4();
+    ost << std::format("@@ -{},{} +{},{} @@ {}\n",
+                       hunk->old_start,
+                       hunk->old_lines,
+                       hunk->new_start,
+                       hunk->new_lines,
+                       header.substr(header.rfind('@') + 2));
+    ost << html::h4();
+    return 0;
+  };
+
+  const auto line_cb = +[](const git_diff_delta* delta,
+                           const git_diff_hunk* hunk,
+                           const git_diff_line* line,
+                           void* payload)
+  {
+    auto& ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
+
+    if (line->origin == '-') {
+      ost << html::span().set("style",
+                              "color: var(--theme_green); white-space: pre;");
+    } else if (line->origin == '+') {
+      ost << html::span().set("style",
+                              "color: var(--theme_red); white-space: pre;");
+    } else {
+      ost << html::span().set("style", "white-space: pre;");
+    }
+
+    xmlencode(ost, std::string(line->content, line->content_len));
+    ost << html::span();
+    return 0;
+  };
+
+  ost << html::h2(commit.get_summary());
+  diff.foreach(file_cb, nullptr, hunk_cb, line_cb, &ost);
+}
+
 void write_footer(std::ostream& ost)
 {
   using namespace hemplate;  // NOLINT
@@ -469,7 +558,7 @@ void write_commits(const std::filesystem::path& base,
                    "Dimitrije Dobrota",
                    commit.get_summary());
       write_title(ofs, repo, branch.get_name());
-      ofs << hemplate::html::h2(commit.get_summary());
+      write_commit_diff(ofs, commit);
       write_footer(ofs);
     }
   }
