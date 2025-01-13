@@ -227,10 +227,18 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
         git2wrap::diff::tree_to_tree(commit.get_tree(), ptree, &opts)
             .get_stats();
 
+    static const int summary_limit = 50;
+    std::string summary = commit.get_summary();
+    if (summary.size() > summary_limit) {
+      summary.resize(summary_limit);
+      for (size_t i = summary.size() - 1; i >= summary.size() - 4; i--) {
+        summary[i] = '.';
+      }
+    }
+
     ost << html::tr()
                .add(html::td(long_to_string(commit.get_time())))
-               .add(html::td().add(
-                   html::a(commit.get_summary()).set("href", url)))
+               .add(html::td().add(html::a(summary).set("href", url)))
                .add(html::td(commit.get_author().get_name()))
                .add(html::td(std::to_string(stats.files_changed())))
                .add(html::td(std::to_string(stats.insertions())))
@@ -396,21 +404,39 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
   ost << html::table();
 }
 
-void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
+void write_file_changes(std::ostream& ost, const git2wrap::diff& diff)
 {
   using namespace hemplate;  // NOLINT
 
-  const auto ptree = commit.get_parentcount() > 0
-      ? commit.get_parent().get_tree()
-      : git2wrap::tree(nullptr, nullptr);
+  const auto file_cb =
+      +[](const git_diff_delta* delta, float /* progress */, void* payload)
+  {
+    auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
 
-  git2wrap::diff_options opts;
-  git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
-  opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
-      | GIT_DIFF_INCLUDE_TYPECHANGE;
+    static const char* marker = " ADMRC  T  ";
 
-  const auto diff =
-      git2wrap::diff::tree_to_tree(commit.get_tree(), ptree, &opts);
+    l_ost << html::tr()
+                 .add(html::td(std::string(1, marker[delta->status])))
+                 .add(html::td(delta->new_file.path))
+                 .add(html::td("|"))
+                 .add(html::td("..."));
+
+    return 0;
+  };
+
+  ost << html::b("Diffstat:");
+  ost << html::table() << html::tbody();
+  diff.foreach(file_cb, nullptr, nullptr, nullptr, &ost);
+  ost << html::tbody() << html::table();
+  /*
+    ost << html::pre(
+        std::format("{} files changed, {} insertions(+), {} deletions(-)"));
+  */
+}
+
+void write_file_diffs(std::ostream& ost, const git2wrap::diff& diff)
+{
+  using namespace hemplate;  // NOLINT
 
   const auto file_cb =
       +[](const git_diff_delta* delta, float /* progress */, void* payload)
@@ -421,6 +447,7 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
     l_ost << std::format(
         "diff --git a/{} b/{}", delta->old_file.path, delta->new_file.path);
     l_ost << html::h3();
+
     return 0;
   };
 
@@ -432,12 +459,13 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
     const std::string header(hunk->header);  // NOLINT
 
     l_ost << html::h4();
-    l_ost << std::format("@@ -{},{} +{},{} @@ {}\n",
+    l_ost << std::format("@@ -{},{} +{},{} @@ ",
                          hunk->new_start,
                          hunk->new_lines,
                          hunk->old_start,
-                         hunk->old_lines,
-                         header.substr(header.rfind('@') + 2));
+                         hunk->old_lines);
+
+    xmlencode(l_ost, header.substr(header.rfind('@') + 2));
     l_ost << html::h4();
     return 0;
   };
@@ -464,6 +492,25 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
     return 0;
   };
 
+  diff.foreach(file_cb, nullptr, hunk_cb, line_cb, &ost);
+}
+
+void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
+{
+  using namespace hemplate;  // NOLINT
+
+  const auto ptree = commit.get_parentcount() > 0
+      ? commit.get_parent().get_tree()
+      : git2wrap::tree(nullptr, nullptr);
+
+  git2wrap::diff_options opts;
+  git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
+  opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
+      | GIT_DIFF_INCLUDE_TYPECHANGE;
+
+  const auto diff =
+      git2wrap::diff::tree_to_tree(commit.get_tree(), ptree, &opts);
+
   ost << html::table() << html::tbody();
 
   const std::string cid = commit.get_id().get_hex_string(22);
@@ -482,11 +529,12 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
 
   ost << html::tr();
   ost << html::td().add(html::b("author"));
-  ost << html::td() << commit.get_author().get_name() << " <";
+  ost << html::td() << commit.get_author().get_name() << " &lt;";
   ost << html::a(commit.get_author().get_email())
              .set("href",
                   std::string("mailto:") + commit.get_author().get_email());
-  ost << '>' << html::td();
+  ost << "&gt;" << html::td();
+  ost << html::tr();
 
   ost << html::tr()
              .add(html::td().add(html::b("date")))
@@ -497,9 +545,10 @@ void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
   xmlencode(ost, commit.get_message());
   ost << html::p();
 
+  write_file_changes(ost, diff);
   ost << html::hr();
 
-  diff.foreach(file_cb, nullptr, hunk_cb, line_cb, &ost);
+  write_file_diffs(ost, diff);
 }
 
 void write_footer(std::ostream& ost)
