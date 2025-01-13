@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <unordered_set>
 
 #include <git2.h>
 #include <git2wrap/diff.hpp>
@@ -142,7 +141,7 @@ void write_header(std::ostream& ost,
 void write_title(std::ostream& ost,
                  const startgit::repository& repo,
                  const std::string& branch_name,
-                 bool no_nav = false)
+                 const std::string& relpath = "./")
 {
   using namespace hemplate;  // NOLINT
 
@@ -175,20 +174,19 @@ void write_title(std::ostream& ost,
           .add(html::text("git clone "))
           .add(html::a(repo.get_url()).set("href", repo.get_url())));
 
-  if (!no_nav) {
-    ost << html::tr().add(html::td()
-                              .add(html::a("Log").set("href", "log.html"))
-                              .add(html::text(" | "))
-                              .add(html::a("Files").set("href", "files.html"))
-                              .add(html::text(" | "))
-                              .add(html::a("Refs").set("href", "refs.html"))
-                              .add(html::text(" | "))
-                              .add(html::a("README").set("href", "./"))
-                              .add(html::text(" | "))
-                              .add(html::a("LICENCE").set("href", "./"))
-                              .add(html::text(" | "))
-                              .add(dropdown));
-  }
+  ost << html::tr().add(
+      html::td()
+          .add(html::a("Log").set("href", relpath + "log.html"))
+          .add(html::text(" | "))
+          .add(html::a("Files").set("href", relpath + "files.html"))
+          .add(html::text(" | "))
+          .add(html::a("Refs").set("href", relpath + "refs.html"))
+          .add(html::text(" | "))
+          .add(html::a("README").set("href", "./"))
+          .add(html::text(" | "))
+          .add(html::a("LICENCE").set("href", "./"))
+          .add(html::text(" | "))
+          .add(dropdown));
 
   ost << html::table();
   ost << html::hr();
@@ -212,7 +210,7 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
 
   while (const auto commit = rwalk.next()) {
     const auto url =
-        std::format("../commit/{}.html", commit.get_id().get_hex_string(22));
+        std::format("./commit/{}.html", commit.get_id().get_hex_string(22));
 
     const auto ptree = commit.get_parentcount() > 0
         ? commit.get_parent().get_tree()
@@ -414,10 +412,12 @@ void write_file_changes(std::ostream& ost, const git2wrap::diff& diff)
     auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
 
     static const char* marker = " ADMRC  T  ";
+    const std::string filename = delta->new_file.path;
 
     l_ost << html::tr()
                  .add(html::td(std::string(1, marker[delta->status])))
-                 .add(html::td(delta->new_file.path))
+                 .add(html::td().add(
+                     html::a(filename).set("href", "#" + filename)))
                  .add(html::td("|"))
                  .add(html::td("..."));
 
@@ -442,10 +442,13 @@ void write_file_diffs(std::ostream& ost, const git2wrap::diff& diff)
       +[](const git_diff_delta* delta, float /* progress */, void* payload)
   {
     auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
+    const auto new_link = std::format("../file/{}.html", delta->new_file.path);
+    const auto old_link = std::format("../file/{}.html", delta->old_file.path);
 
-    l_ost << html::h3();
-    l_ost << std::format(
-        "diff --git a/{} b/{}", delta->old_file.path, delta->new_file.path);
+    l_ost << html::h3().set("id", delta->new_file.path);
+    l_ost << "diff --git";
+    l_ost << " a/" << html::a(delta->new_file.path).set("href", new_link);
+    l_ost << " b/" << html::a(delta->old_file.path).set("href", old_link);
     l_ost << html::h3();
 
     return 0;
@@ -651,35 +654,27 @@ void write_refs(const std::filesystem::path& base,
 }
 
 void write_commits(const std::filesystem::path& base,
-                   const startgit::repository& repo)
+                   const startgit::repository& repo,
+                   const startgit::branch& branch)
 {
-  std::unordered_set<std::string> seen;
+  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
 
-  for (const auto& branch : repo.get_branches()) {
-    const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
+  git2wrap::revwalk rwalk(repo.get());
+  rwalk.push(obj.get_id());
+  while (const auto commit = rwalk.next()) {
+    const auto hash = commit.get_id().get_hex_string(22);
 
-    git2wrap::revwalk rwalk(repo.get());
-    rwalk.push(obj.get_id());
-    while (const auto commit = rwalk.next()) {
-      const auto hash = commit.get_id().get_hex_string(22);
+    const std::string filename = hash + ".html";
+    std::ofstream ofs(base / filename);
 
-      const auto [_, inserted] = seen.insert(hash);
-      if (!inserted) {
-        break;
-      }
-
-      const std::string filename = hash + ".html";
-      std::ofstream ofs(base / filename);
-
-      write_header(ofs,
-                   repo.get_name(),
-                   branch.get_name(),
-                   "Dimitrije Dobrota",
-                   commit.get_summary());
-      write_title(ofs, repo, branch.get_name(), /*no_nav=*/true);
-      write_commit_diff(ofs, commit);
-      write_footer(ofs);
-    }
+    write_header(ofs,
+                 repo.get_name(),
+                 branch.get_name(),
+                 "Dimitrije Dobrota",
+                 commit.get_summary());
+    write_title(ofs, repo, branch.get_name(), "../");
+    write_commit_diff(ofs, commit);
+    write_footer(ofs);
   }
 }
 
@@ -756,11 +751,12 @@ int main(int argc, char* argv[])
         write_log(base_branch, repo, branch);
         write_files(base_branch, repo, branch);
         write_refs(base_branch, repo, branch);
-      }
 
-      const std::filesystem::path commit = base / "commit";
-      std::filesystem::create_directory(commit);
-      write_commits(commit, repo);
+        const std::filesystem::path commit = base_branch / "commit";
+        std::filesystem::create_directory(commit);
+
+        write_commits(commit, repo, branch);
+      }
     }
 
     // Build repo index
