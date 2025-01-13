@@ -36,7 +36,6 @@ std::string long_to_string(const git2wrap::time& time)
   strs << std::format("{:02}{:02}", time.offset / 60, time.offset % 60);
   return strs.str();
 }
-
 // NOLINTBEGIN
 // clang-format off
 
@@ -116,12 +115,17 @@ void write_header(std::ostream& ost,
                       .set("href",
                            "https://dimitrijedobrota.com/css/colors.css"))
              // Icons
-             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
-                      .set("sizes", "32x32")
-                      .set("href", "/img/favicon-32x32.png"))
-             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
-                      .set("sizes", "16x16")
-                      .set("href", "/img/favicon-16x16.png"));
+             .add(
+                 html::link({{"rel", "icon"}, {"type", "image/png"}})
+                     .set("sizes", "32x32")
+                     .set("href",
+                          "https://dimitrijedobrota.com/img/favicon-32x32.png"))
+             .add(
+                 html::link({{"rel", "icon"}, {"type", "image/png"}})
+                     .set("sizes", "16x16")
+                     .set(
+                         "href",
+                         "https://dimitrijedobrota.com/img/favicon-16x16.png"));
   ost << html::body();
   ost << html::input()
              .set("type", "checkbox")
@@ -137,7 +141,8 @@ void write_header(std::ostream& ost,
 
 void write_title(std::ostream& ost,
                  const startgit::repository& repo,
-                 const std::string& branch_name)
+                 const std::string& branch_name,
+                 bool no_nav = false)
 {
   using namespace hemplate;  // NOLINT
 
@@ -169,19 +174,22 @@ void write_title(std::ostream& ost,
       html::td()
           .add(html::text("git clone "))
           .add(html::a(repo.get_url()).set("href", repo.get_url())));
-  ost << html::tr().add(
-      html::td()
-          .add(html::a("Log").set("href", branch_name + "_log.html"))
-          .add(html::text(" | "))
-          .add(html::a("Files").set("href", branch_name + "_files.html"))
-          .add(html::text(" | "))
-          .add(html::a("Refs").set("href", branch_name + "_refs.html"))
-          .add(html::text(" | "))
-          .add(html::a("README").set("href", "./"))
-          .add(html::text(" | "))
-          .add(html::a("LICENCE").set("href", "./"))
-          .add(html::text(" | "))
-          .add(dropdown));
+
+  if (!no_nav) {
+    ost << html::tr().add(html::td()
+                              .add(html::a("Log").set("href", "log.html"))
+                              .add(html::text(" | "))
+                              .add(html::a("Files").set("href", "files.html"))
+                              .add(html::text(" | "))
+                              .add(html::a("Refs").set("href", "refs.html"))
+                              .add(html::text(" | "))
+                              .add(html::a("README").set("href", "./"))
+                              .add(html::text(" | "))
+                              .add(html::a("LICENCE").set("href", "./"))
+                              .add(html::text(" | "))
+                              .add(dropdown));
+  }
+
   ost << html::table();
   ost << html::hr();
 }
@@ -204,7 +212,7 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
 
   while (const auto commit = rwalk.next()) {
     const auto url =
-        std::format("./commit/{}.html", commit.get_id().get_hex_string(22));
+        std::format("../commit/{}.html", commit.get_id().get_hex_string(22));
 
     const auto ptree = commit.get_parentcount() > 0
         ? commit.get_parent().get_tree()
@@ -256,7 +264,7 @@ void write_repo_table(std::ostream& ost,
       ost << html::tr()
                  .add(html::td().add(
                      html::a(repo.get_name())
-                         .set("href", repo.get_name() + "/master_log.html")))
+                         .set("href", repo.get_name() + "/master/log.html")))
                  .add(html::td(repo.get_description()))
                  .add(html::td(repo.get_owner()))
                  .add(html::td(
@@ -500,12 +508,15 @@ void write_footer(std::ostream& ost)
 
   ost << html::main();
   ost << html::div();
-  ost << html::script(" ").set("src", "/scripts/main.js");
+  ost << html::script(" ").set(
+      "src", "https://www.dimitrijedobrota.com/scripts/main.js");
   ost << html::script(
-      "function switchPage(value) { "
-      "history.replaceState(history.state, '', value + "
-      "window.location.href.substring(window.location.href.lastIndexOf('_'))); "
-      "location.reload();}");
+      "function switchPage(value) {"
+      "   let arr = window.location.href.split('/');"
+      "   arr[4] = value;"
+      "   history.replaceState(history.state, '', arr.join('/'));"
+      "   location.reload();"
+      "}");
   ost << html::style(
       "  table { "
       " margin-left: 0;"
@@ -534,8 +545,7 @@ void write_log(const std::filesystem::path& base,
                const startgit::repository& repo,
                const startgit::branch& branch)
 {
-  const std::string filename = branch.get_name() + "_log.html";
-  std::ofstream ofs(base / filename);
+  std::ofstream ofs(base / "log.html");
 
   git2wrap::revwalk rwalk(repo.get());
 
@@ -556,8 +566,7 @@ void write_files(const std::filesystem::path& base,
                  const startgit::repository& repo,
                  const startgit::branch& branch)
 {
-  const std::string filename = branch.get_name() + "_files.html";
-  std::ofstream ofs(base / filename);
+  std::ofstream ofs(base / "files.html");
 
   const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
   const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
@@ -576,8 +585,7 @@ void write_refs(const std::filesystem::path& base,
                 const startgit::repository& repo,
                 const startgit::branch& branch)
 {
-  const std::string filename = branch.get_name() + "_refs.html";
-  std::ofstream ofs(base / filename);
+  std::ofstream ofs(base / "refs.html");
 
   const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
   const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
@@ -619,7 +627,7 @@ void write_commits(const std::filesystem::path& base,
                    branch.get_name(),
                    "Dimitrije Dobrota",
                    commit.get_summary());
-      write_title(ofs, repo, branch.get_name());
+      write_title(ofs, repo, branch.get_name(), /*no_nav=*/true);
       write_commit_diff(ofs, commit);
       write_footer(ofs);
     }
@@ -693,9 +701,12 @@ int main(int argc, char* argv[])
       std::filesystem::create_directory(base);
 
       for (const auto& branch : repo.get_branches()) {
-        write_log(base, repo, branch);
-        write_files(base, repo, branch);
-        write_refs(base, repo, branch);
+        const std::filesystem::path base_branch = base / branch.get_name();
+        std::filesystem::create_directory(base_branch);
+
+        write_log(base_branch, repo, branch);
+        write_files(base_branch, repo, branch);
+        write_refs(base_branch, repo, branch);
       }
 
       const std::filesystem::path commit = base / "commit";
