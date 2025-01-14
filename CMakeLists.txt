@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.1.16
+    VERSION 0.1.17
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
@@ -24,7 +24,12 @@ find_package(poafloc 1 CONFIG REQUIRED)
 add_library(
     startgit_lib OBJECT
     source/branch.cpp
+    source/diff.cpp
+    source/tag.cpp
+    source/commit.cpp
+    source/file.cpp
     source/repository.cpp
+    source/utils.cpp
 )
 
 target_link_libraries(startgit_lib PUBLIC git2wrap::git2wrap hemplate::hemplate poafloc::poafloc)

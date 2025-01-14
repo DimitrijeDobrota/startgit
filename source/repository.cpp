@@ -14,12 +14,25 @@ repository::repository(const std::filesystem::path& path)
     , m_owner(read_file(path, "owner"))
     , m_description(read_file(path, "description"))
 {
+  // Get branches
   for (auto it = m_repo.branch_begin(GIT_BRANCH_LOCAL);
        it != m_repo.branch_end();
        ++it)
   {
-    m_branches.emplace_back(it->dup());
+    // const branch brnch(it->dup(), *this);
+    // m_branches.push_front(std::move(brnch));
+    m_branches.emplace_back(it->dup(), *this);
   }
+
+  // Get tags
+  auto callback = +[](const char*, git_oid* objid, void* payload_p)
+  {
+    auto& repo = *reinterpret_cast<repository*>(payload_p);  // NOLINT
+    repo.m_tags.emplace_back(repo.m_repo.tag_lookup(git2wrap::oid(objid)));
+    return 0;
+  };
+
+  m_repo.tag_foreach(callback, this);
 }
 
 std::string repository::read_file(const std::filesystem::path& base,

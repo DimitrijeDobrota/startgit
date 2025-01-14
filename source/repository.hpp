@@ -7,6 +7,7 @@
 #include <git2wrap/repository.hpp>
 
 #include "branch.hpp"
+#include "tag.hpp"
 
 namespace startgit
 {
@@ -15,6 +16,11 @@ class repository
 {
 public:
   explicit repository(const std::filesystem::path& path);
+  repository(const repository&) = delete;
+  repository& operator=(const repository&) = delete;
+  repository(repository&&) = default;
+  repository& operator=(repository&&) = default;
+  ~repository() = default;
 
   const auto& get() const { return m_repo; }
   const auto& get_path() const { return m_path; }
@@ -25,6 +31,7 @@ public:
   const std::string& get_description() const { return m_description; }
 
   const auto& get_branches() const { return m_branches; }
+  const auto& get_tags() const { return m_tags; }
 
 private:
   static std::string read_file(const std::filesystem::path& base,
@@ -40,6 +47,7 @@ private:
   std::string m_description;
 
   std::vector<branch> m_branches;
+  std::vector<tag> m_tags;
 };
 
 }  // namespace startgit

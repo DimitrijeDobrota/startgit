@@ -4,85 +4,13 @@
 #include <iostream>
 #include <string>
 
-#include <git2.h>
-#include <git2wrap/diff.hpp>
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
-#include <git2wrap/object.hpp>
-#include <git2wrap/repository.hpp>
-#include <git2wrap/revwalk.hpp>
-#include <git2wrap/signature.hpp>
-#include <git2wrap/tag.hpp>
 #include <hemplate/classes.hpp>
 #include <poafloc/poafloc.hpp>
-#include <sys/stat.h>
 
 #include "repository.hpp"
-
-std::string long_to_string(int64_t date)
-{
-  std::stringstream strs;
-  strs << std::put_time(std::gmtime(&date), "%Y-%m-%d %H:%M");  // NOLINT
-  return strs.str();
-}
-
-std::string long_to_string(const git2wrap::time& time)
-{
-  std::stringstream strs;
-  strs << std::put_time(std::gmtime(&time.time),  // NOLINT
-                        "%a, %e %b %Y %H:%M:%S ");
-  strs << (time.offset < 0 ? '-' : '+');
-  strs << std::format("{:02}{:02}", time.offset / 60, time.offset % 60);
-  return strs.str();
-}
-// NOLINTBEGIN
-// clang-format off
-
-void xmlencode(std::ostream& ost, const std::string& s)
-{
-    for (const char c: s) {
-        switch(c) {
-        case '<':  ost << "&lt;"; break;
-        case '>':  ost << "&gt;"; break;
-        case '\'': ost << "&#39;"; break;
-        case '&':  ost << "&amp;"; break;
-        case '"':  ost << "&quot;"; break;
-        default:   ost << c;
-        }
-    }
-}
-
-std::string filemode(git2wrap::filemode_t filemode)
-{
-  std::string mode(10, '-');
-
-  if (S_ISREG(filemode)) mode[0] = '-';
-  else if (S_ISBLK(filemode)) mode[0] = 'b';
-  else if (S_ISCHR(filemode)) mode[0] = 'c';
-  else if (S_ISDIR(filemode)) mode[0] = 'd';
-  else if (S_ISFIFO(filemode)) mode[0] = 'p';
-  else if (S_ISLNK(filemode)) mode[0] = 'l';
-  else if (S_ISSOCK(filemode)) mode[0] = 's';
-  else mode[0] = '?';
-
-  if (filemode & S_IRUSR) mode[1] = 'r';
-  if (filemode & S_IWUSR) mode[2] = 'w';
-  if (filemode & S_IXUSR) mode[3] = 'x';
-  if (filemode & S_IRGRP) mode[4] = 'r';
-  if (filemode & S_IWGRP) mode[5] = 'w';
-  if (filemode & S_IXGRP) mode[6] = 'x';
-  if (filemode & S_IROTH) mode[7] = 'r';
-  if (filemode & S_IWOTH) mode[8] = 'w';
-  if (filemode & S_IXOTH) mode[9] = 'x';
-
-  if (filemode & S_ISUID) mode[3] = (mode[3] == 'x') ? 's' : 'S';
-  if (filemode & S_ISGID) mode[6] = (mode[6] == 'x') ? 's' : 'S';
-  if (filemode & S_ISVTX) mode[9] = (mode[9] == 'x') ? 't' : 'T';
-
-  return mode;
-}
-// clang-format on
-// NOLINTEND
+#include "utils.hpp"
 
 void write_header(std::ostream& ost,
                   const std::string& repo,
@@ -192,7 +120,7 @@ void write_title(std::ostream& ost,
   ost << html::hr();
 }
 
-void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
+void write_commit_table(std::ostream& ost, const startgit::branch& branch)
 {
   using namespace hemplate;  // NOLINT
 
@@ -208,47 +136,44 @@ void write_commit_table(std::ostream& ost, git2wrap::revwalk& rwalk)
   ost << html::thead();
   ost << html::tbody();
 
-  while (const auto commit = rwalk.next()) {
-    const auto url =
-        std::format("./commit/{}.html", commit.get_id().get_hex_string(22));
-
-    const auto ptree = commit.get_parentcount() > 0
-        ? commit.get_parent().get_tree()
-        : git2wrap::tree(nullptr, nullptr);
-
-    git2wrap::diff_options opts;
-    git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
-    opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
-        | GIT_DIFF_INCLUDE_TYPECHANGE;
-
-    const auto stats =
-        git2wrap::diff::tree_to_tree(commit.get_tree(), ptree, &opts)
-            .get_stats();
-
-    static const int summary_limit = 50;
-    std::string summary = commit.get_summary();
-    if (summary.size() > summary_limit) {
-      summary.resize(summary_limit);
-      for (size_t i = summary.size() - 1; i >= summary.size() - 4; i--) {
-        summary[i] = '.';
-      }
-    }
+  for (const auto& commit : branch.get_commits()) {
+    const auto url = std::format("./commit/{}.html", commit.get_id());
 
     ost << html::tr()
-               .add(html::td(long_to_string(commit.get_time())))
-               .add(html::td().add(html::a(summary).set("href", url)))
-               .add(html::td(commit.get_author().get_name()))
-               .add(html::td(std::to_string(stats.files_changed())))
-               .add(html::td(std::to_string(stats.insertions())))
-               .add(html::td(std::to_string(stats.deletions())));
+               .add(html::td(commit.get_time()))
+               .add(html::td().add(
+                   html::a(commit.get_summary()).set("href", url)))
+               .add(html::td(commit.get_author_name()))
+               .add(html::td(commit.get_diff().get_files_changed()))
+               .add(html::td(commit.get_diff().get_insertions()))
+               .add(html::td(commit.get_diff().get_deletions()));
   }
 
   ost << html::tbody();
   ost << html::table();
 }
 
-void write_repo_table(std::ostream& ost,
-                      const std::vector<startgit::repository>& repos)
+void write_repo_table_entry(std::ostream& ost, const startgit::repository& repo)
+{
+  using namespace hemplate;  // NOLINT
+
+  for (const auto& branch : repo.get_branches()) {
+    if (branch.get_name() != "master") {
+      continue;
+    }
+
+    const auto url = repo.get_name() + "/master/log.html";
+
+    ost << html::tr()
+               .add(html::td().add(html::a(repo.get_name()).set("href", url)))
+               .add(html::td(repo.get_description()))
+               .add(html::td(repo.get_owner()))
+               .add(html::td(branch.get_commits()[0].get_author_time()));
+    break;
+  }
+}
+
+void write_repo_table(std::ostream& ost, const std::stringstream& index)
 {
   using namespace hemplate;  // NOLINT
 
@@ -262,30 +187,13 @@ void write_repo_table(std::ostream& ost,
   ost << html::thead();
   ost << html::tbody();
 
-  for (const auto& repo : repos) {
-    try {
-      const git2wrap::object obj = repo.get().revparse("master");
-      const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
-
-      ost << html::tr()
-                 .add(html::td().add(
-                     html::a(repo.get_name())
-                         .set("href", repo.get_name() + "/master/log.html")))
-                 .add(html::td(repo.get_description()))
-                 .add(html::td(repo.get_owner()))
-                 .add(html::td(
-                     long_to_string(commit.get_author().get_time().time)));
-    } catch (const git2wrap::error& error) {
-      std::cerr << std::format("Warning: {} no master branch\n",
-                               repo.get_path().string());
-    }
-  }
+  ost << index.str();
 
   ost << html::tbody();
   ost << html::table();
 }
 
-void write_files_table(std::ostream& ost, const git2wrap::tree& tree)
+void write_files_table(std::ostream& ost, const startgit::branch& branch)
 {
   using namespace hemplate;  // NOLINT
 
@@ -298,32 +206,14 @@ void write_files_table(std::ostream& ost, const git2wrap::tree& tree)
   ost << html::thead();
   ost << html::tbody();
 
-  std::function<void(
-      std::ostream&, const git2wrap::tree&, const std::string& path)>
-      traverse = [&traverse](auto& l_ost, const auto& l_tree, const auto& path)
-  {
-    for (size_t i = 0; i < l_tree.get_entrycount(); i++) {
-      const auto entry = l_tree.get_entry(i);
-      const auto full_path =
-          (!path.empty() ? path + "/" : "") + entry.get_name();
+  for (const auto& file : branch.get_files()) {
+    const auto url = std::format("./file/{}.html", file.get_path());
 
-      switch (entry.get_type()) {
-        case GIT_OBJ_BLOB:
-          break;
-        case GIT_OBJ_TREE:
-          traverse(l_ost, entry.to_tree(), full_path);
-          continue;
-        default:
-          continue;
-      }
-
-      l_ost << html::tr()
-                   .add(html::td(filemode((entry.get_filemode()))))
-                   .add(html::td().add(html::a(full_path).set("href", "./")))
-                   .add(html::td("0"));
-    }
-  };
-  traverse(ost, tree, "");
+    ost << html::tr()
+               .add(html::td(file.get_filemode()))
+               .add(html::td().add(html::a(file.get_path()).set("href", url)))
+               .add(html::td("0"));
+  }
 
   ost << html::tbody();
   ost << html::table();
@@ -347,14 +237,16 @@ void write_branch_table(std::ostream& ost,
   ost << html::tbody();
 
   for (const auto& branch : repo.get_branches()) {
-    const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
-    const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
+    const auto& last = branch.get_last_commit();
+    const auto url = branch.get_name() != branch_name
+        ? std::format("../{}/refs.html", branch.get_name())
+        : "";
 
     ost << html::tr()
                .add(html::td(branch.get_name() == branch_name ? "*" : "&nbsp;"))
-               .add(html::td(branch.get_name()))
-               .add(html::td(long_to_string(commit.get_time())))
-               .add(html::td(commit.get_author().get_name()));
+               .add(html::td().add(html::a(branch.get_name()).set("href", url)))
+               .add(html::td(last.get_time()))
+               .add(html::td(last.get_author_name()));
   }
 
   ost << html::tbody();
@@ -376,182 +268,130 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
   ost << html::thead();
   ost << html::tbody();
 
-  struct payload_t
-  {
-    std::ostream& ost;  // NOLINT
-    const startgit::repository& repo;  // NOLINT
-  } payload(ost, repo);
-
-  auto callback = +[](const char*, git_oid* objid, void* payload_p)
-  {
-    auto l_payload = *reinterpret_cast<payload_t*>(payload_p);  // NOLINT
-    const auto tag = l_payload.repo.get().tag_lookup(git2wrap::oid(objid));
-
-    l_payload.ost << html::tr()
-                         .add(html::td("&nbsp;"))
-                         .add(html::td(tag.get_name()))
-                         .add(html::td(
-                             long_to_string(tag.get_tagger().get_time().time)))
-                         .add(html::td(tag.get_tagger().get_name()));
-    return 0;
-  };
-
-  repo.get().tag_foreach(callback, &payload);
+  for (const auto& tag : repo.get_tags()) {
+    ost << html::tr()
+               .add(html::td("&nbsp;"))
+               .add(html::td(tag.get_name()))
+               .add(html::td(tag.get_time()))
+               .add(html::td(tag.get_name()));
+  }
 
   ost << html::tbody();
   ost << html::table();
 }
 
-void write_file_changes(std::ostream& ost, const git2wrap::diff& diff)
+void write_file_changes(std::ostream& ost, const startgit::diff& diff)
 {
   using namespace hemplate;  // NOLINT
-
-  const auto file_cb =
-      +[](const git_diff_delta* delta, float /* progress */, void* payload)
-  {
-    auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
-
-    static const char* marker = " ADMRC  T  ";
-    const std::string filename = delta->new_file.path;
-
-    l_ost << html::tr()
-                 .add(html::td(std::string(1, marker[delta->status])))
-                 .add(html::td().add(
-                     html::a(filename).set("href", "#" + filename)))
-                 .add(html::td("|"))
-                 .add(html::td("..."));
-
-    return 0;
-  };
 
   ost << html::b("Diffstat:");
   ost << html::table() << html::tbody();
-  diff.foreach(file_cb, nullptr, nullptr, nullptr, &ost);
+
+  for (const auto& delta : diff.get_deltas()) {
+    static const char* marker = " ADMRC  T  ";
+
+    const std::string link = std::format("#{}", delta->new_file.path);
+
+    ost << html::tr()
+               .add(html::td(std::string(1, marker[delta->status])))
+               .add(html::td().add(
+                   html::a(delta->new_file.path).set("href", link)))
+               .add(html::td("|"))
+               .add(html::td("..."));
+  }
+
   ost << html::tbody() << html::table();
-  /*
-    ost << html::pre(
-        std::format("{} files changed, {} insertions(+), {} deletions(-)"));
-  */
+  ost << html::span(
+      std::format("{} files changed, {} insertions(+), {} deletions(-)",
+                  diff.get_files_changed(),
+                  diff.get_insertions(),
+                  diff.get_deletions()));
 }
 
-void write_file_diffs(std::ostream& ost, const git2wrap::diff& diff)
+void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
 {
   using namespace hemplate;  // NOLINT
 
-  const auto file_cb =
-      +[](const git_diff_delta* delta, float /* progress */, void* payload)
-  {
-    auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
+  for (const auto& delta : diff.get_deltas()) {
     const auto new_link = std::format("../file/{}.html", delta->new_file.path);
     const auto old_link = std::format("../file/{}.html", delta->old_file.path);
 
-    l_ost << html::h3().set("id", delta->new_file.path);
-    l_ost << "diff --git";
-    l_ost << " a/" << html::a(delta->new_file.path).set("href", new_link);
-    l_ost << " b/" << html::a(delta->old_file.path).set("href", old_link);
-    l_ost << html::h3();
+    ost << html::h3().set("id", delta->new_file.path);
+    ost << "diff --git";
+    ost << " a/" << html::a(delta->new_file.path).set("href", new_link);
+    ost << " b/" << html::a(delta->old_file.path).set("href", old_link);
+    ost << html::h3();
 
-    return 0;
-  };
+    for (const auto& hunk : delta.get_hunks()) {
+      const std::string header(hunk->header);  // NOLINT
 
-  const auto hunk_cb = +[](const git_diff_delta* /* delta */,
-                           const git_diff_hunk* hunk,
-                           void* payload)
-  {
-    auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
-    const std::string header(hunk->header);  // NOLINT
-
-    l_ost << html::h4();
-    l_ost << std::format("@@ -{},{} +{},{} @@ ",
+      ost << html::h4();
+      ost << std::format("@@ -{},{} +{},{} @@ ",
                          hunk->new_start,
                          hunk->new_lines,
                          hunk->old_start,
                          hunk->old_lines);
 
-    xmlencode(l_ost, header.substr(header.rfind('@') + 2));
-    l_ost << html::h4();
-    return 0;
-  };
+      startgit::xmlencode(ost, header.substr(header.rfind('@') + 2));
+      ost << html::h4();
 
-  const auto line_cb = +[](const git_diff_delta* /* delta */,
-                           const git_diff_hunk* /* hunk */,
-                           const git_diff_line* line,
-                           void* payload)
-  {
-    auto& l_ost = *reinterpret_cast<std::ostream*>(payload);  // NOLINT
+      for (const auto& line : hunk.get_lines()) {
+        if (line.get_origin() == '-') {
+          ost << html::span().set(
+              "style", "color: var(--theme_green); white-space: pre;");
+        } else if (line.get_origin() == '+') {
+          ost << html::span().set("style",
+                                  "color: var(--theme_red); white-space: pre;");
+        } else {
+          ost << html::span().set("style", "white-space: pre;");
+        }
 
-    if (line->origin == '-') {
-      l_ost << html::span().set("style",
-                                "color: var(--theme_green); white-space: pre;");
-    } else if (line->origin == '+') {
-      l_ost << html::span().set("style",
-                                "color: var(--theme_red); white-space: pre;");
-    } else {
-      l_ost << html::span().set("style", "white-space: pre;");
+        startgit::xmlencode(ost, line.get_content());
+        ost << html::span();
+      }
     }
-
-    xmlencode(l_ost, std::string(line->content, line->content_len));
-    l_ost << html::span();
-    return 0;
-  };
-
-  diff.foreach(file_cb, nullptr, hunk_cb, line_cb, &ost);
+  }
 }
 
-void write_commit_diff(std::ostream& ost, const git2wrap::commit& commit)
+void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
 {
   using namespace hemplate;  // NOLINT
 
-  const auto ptree = commit.get_parentcount() > 0
-      ? commit.get_parent().get_tree()
-      : git2wrap::tree(nullptr, nullptr);
-
-  git2wrap::diff_options opts;
-  git_diff_init_options(&opts, GIT_DIFF_OPTIONS_VERSION);
-  opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
-      | GIT_DIFF_INCLUDE_TYPECHANGE;
-
-  const auto diff =
-      git2wrap::diff::tree_to_tree(commit.get_tree(), ptree, &opts);
-
   ost << html::table() << html::tbody();
 
-  const std::string cid = commit.get_id().get_hex_string(22);
+  const auto url = std::format("../commit/{}.html", commit.get_id());
   ost << html::tr()
              .add(html::td().add(html::b("commit")))
-             .add(html::td().add(html::a(cid).set(
-                 "href", std::format("../commit/{}.html", cid))));
+             .add(html::td().add(html::a(commit.get_id()).set("href", url)));
 
   if (commit.get_parentcount() > 0) {
-    const std::string pid = commit.get_parent().get_id().get_hex_string(22);
+    const auto purl = std::format("../commit/{}.html", commit.get_parent_id());
     ost << html::tr()
                .add(html::td().add(html::b("parent")))
-               .add(html::td().add(html::a(pid).set(
-                   "href", std::format("../commit/{}.html", pid))));
+               .add(html::td().add(
+                   html::a(commit.get_parent_id()).set("href", purl)));
   }
 
+  const auto mailto = std::string("mailto:") + commit.get_author_email();
   ost << html::tr();
   ost << html::td().add(html::b("author"));
-  ost << html::td() << commit.get_author().get_name() << " &lt;";
-  ost << html::a(commit.get_author().get_email())
-             .set("href",
-                  std::string("mailto:") + commit.get_author().get_email());
+  ost << html::td() << commit.get_author_name() << " &lt;";
+  ost << html::a(commit.get_author_email()).set("href", mailto);
   ost << "&gt;" << html::td();
   ost << html::tr();
 
   ost << html::tr()
              .add(html::td().add(html::b("date")))
-             .add(html::td(long_to_string(commit.get_author().get_time())));
+             .add(html::td(commit.get_author_time()));
   ost << html::tbody() << html::table();
 
   ost << html::br() << html::p().set("style", "white-space: pre;");
-  xmlencode(ost, commit.get_message());
+  startgit::xmlencode(ost, commit.get_message());
   ost << html::p();
 
-  write_file_changes(ost, diff);
+  write_file_changes(ost, commit.get_diff());
   ost << html::hr();
-
-  write_file_diffs(ost, diff);
+  write_file_diffs(ost, commit.get_diff());
 }
 
 void write_footer(std::ostream& ost)
@@ -599,18 +439,13 @@ void write_log(const std::filesystem::path& base,
 {
   std::ofstream ofs(base / "log.html");
 
-  git2wrap::revwalk rwalk(repo.get());
-
-  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
-  rwalk.push(obj.get_id());
-
   write_header(ofs,
                repo.get_name(),
                branch.get_name(),
                repo.get_owner(),
                repo.get_description());
   write_title(ofs, repo, branch.get_name());
-  write_commit_table(ofs, rwalk);
+  write_commit_table(ofs, branch);
   write_footer(ofs);
 }
 
@@ -620,16 +455,13 @@ void write_files(const std::filesystem::path& base,
 {
   std::ofstream ofs(base / "files.html");
 
-  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
-  const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
-
   write_header(ofs,
                repo.get_name(),
                branch.get_name(),
                repo.get_owner(),
                repo.get_description());
   write_title(ofs, repo, branch.get_name());
-  write_files_table(ofs, commit.get_tree());
+  write_files_table(ofs, branch);
   write_footer(ofs);
 }
 
@@ -638,9 +470,6 @@ void write_refs(const std::filesystem::path& base,
                 const startgit::branch& branch)
 {
   std::ofstream ofs(base / "refs.html");
-
-  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
-  const git2wrap::commit commit = repo.get().commit_lookup(obj.get_id());
 
   write_header(ofs,
                repo.get_name(),
@@ -657,14 +486,8 @@ void write_commits(const std::filesystem::path& base,
                    const startgit::repository& repo,
                    const startgit::branch& branch)
 {
-  const git2wrap::object obj = repo.get().revparse(branch.get_name().c_str());
-
-  git2wrap::revwalk rwalk(repo.get());
-  rwalk.push(obj.get_id());
-  while (const auto commit = rwalk.next()) {
-    const auto hash = commit.get_id().get_hex_string(22);
-
-    const std::string filename = hash + ".html";
+  for (const auto& commit : branch.get_commits()) {
+    const std::string filename = commit.get_id() + ".html";
     std::ofstream ofs(base / filename);
 
     write_header(ofs,
@@ -726,21 +549,12 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  try {
-    const git2wrap::libgit2 libgit;
-    std::vector<startgit::repository> repos;
+  const git2wrap::libgit2 libgit;
+  std::stringstream index;
 
-    // open all repositories
-    for (const auto& repo_path : args.repos) {
-      try {
-        repos.emplace_back(repo_path);
-      } catch (const git2wrap::error& err) {
-        std::cerr << std::format("Warning: {} is not a repository\n",
-                                 repo_path.string());
-      }
-    }
-
-    for (const auto& repo : repos) {
+  for (const auto& repo_path : args.repos) {
+    try {
+      const startgit::repository repo(repo_path);
       const std::filesystem::path base = args.output_dir / repo.get_name();
       std::filesystem::create_directory(base);
 
@@ -757,20 +571,24 @@ int main(int argc, char* argv[])
 
         write_commits(commit, repo, branch);
       }
+
+      write_repo_table_entry(index, repo);
+    } catch (const git2wrap::error& err) {
+      std::cerr << std::format("Warning: {} is not a repository\n",
+                               repo_path.string());
     }
+  }
 
-    // Build repo index
-    std::ofstream ofs(args.output_dir / "index.html");
-
-    write_header(ofs,
-                 "Git repository",
-                 "~",
-                 "Dimitrije Dobrota",
-                 "Collection of all public git repositories");
-    write_repo_table(ofs, repos);
-    write_footer(ofs);
-
-  } catch (const git2wrap::error& err) {
+  std::ofstream ofs(args.output_dir / "index.html");
+  write_header(ofs,
+               "Git repository",
+               "~",
+               "Dimitrije Dobrota",
+               "Collection of all public git repositories");
+  write_repo_table(ofs, index);
+  write_footer(ofs);
+  /*
+  catch (const git2wrap::error& err) {
     std::cerr << std::format("({}:{}) Error {}/{}: {}\n",
                              err.get_file(),
                              err.get_line(),
@@ -778,6 +596,7 @@ int main(int argc, char* argv[])
                              err.get_klass(),
                              err.get_message());
   }
+  */
 
   return 0;
 }
