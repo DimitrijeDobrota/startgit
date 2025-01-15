@@ -405,6 +405,25 @@ void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
   write_file_diffs(ost, commit.get_diff());
 }
 
+void write_file_content(std::ostream& ost, const startgit::file& file)
+{
+  using namespace hemplate;  // NOLINT
+
+  const std::string str(file.get_content(), file.get_size());
+  std::stringstream sstr(str);
+
+  std::string line;
+
+  ost << html::span().set("style", "white-space: pre;");
+  for (int count = 1; std::getline(sstr, line, '\n'); count++) {
+    ost << std::format(R"(<a id="{}" href="#{}">{:5}</a>)", count, count, count);
+    ost << "  ";
+    startgit::xmlencode(ost, line);
+    ost << '\n';
+  }
+  ost << html::span();
+}
+
 void write_footer(std::ostream& ost)
 {
   using namespace hemplate;  // NOLINT
@@ -456,9 +475,9 @@ void write_log(const std::filesystem::path& base,
   write_footer(ofs);
 }
 
-void write_files(const std::filesystem::path& base,
-                 const startgit::repository& repo,
-                 const startgit::branch& branch)
+void write_file(const std::filesystem::path& base,
+                const startgit::repository& repo,
+                const startgit::branch& branch)
 {
   std::ofstream ofs(base / "files.html");
 
@@ -492,6 +511,29 @@ void write_commits(const std::filesystem::path& base,
     write_header(ofs, repo, branch, commit.get_summary());
     write_title(ofs, repo, branch.get_name(), "../");
     write_commit_diff(ofs, commit);
+    write_footer(ofs);
+  }
+}
+
+void write_files(const std::filesystem::path& base,
+                 const startgit::repository& repo,
+                 const startgit::branch& branch)
+{
+  for (const auto& file : branch.get_files()) {
+    const std::filesystem::path path = base / (file.get_path() + ".html");
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream ofs(path);
+
+    std::string back = "../";
+    for (const char chr : file.get_path()) {
+      if (chr == '/') {
+        back += "../";
+      }
+    }
+
+    write_header(ofs, repo, branch, file.get_path());
+    write_title(ofs, repo, branch.get_name(), back);
+    write_file_content(ofs, file);
     write_footer(ofs);
   }
 }
@@ -558,13 +600,18 @@ int main(int argc, char* argv[])
         std::filesystem::create_directory(base_branch);
 
         write_log(base_branch, repo, branch);
-        write_files(base_branch, repo, branch);
+        write_file(base_branch, repo, branch);
         write_refs(base_branch, repo, branch);
 
         const std::filesystem::path commit = base_branch / "commit";
         std::filesystem::create_directory(commit);
 
         write_commits(commit, repo, branch);
+
+        const std::filesystem::path file = base_branch / "file";
+        std::filesystem::create_directory(file);
+
+        write_files(file, repo, branch);
       }
 
       write_repo_table_entry(index, repo);
