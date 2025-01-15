@@ -9,14 +9,14 @@
 namespace startgit
 {
 
-std::string long_to_string(int64_t date)
+std::string time_short(int64_t date)
 {
   std::stringstream strs;
   strs << std::put_time(std::gmtime(&date), "%Y-%m-%d %H:%M");  // NOLINT
   return strs.str();
 }
 
-std::string long_to_string(const git2wrap::time& time)
+std::string time_long(const git2wrap::time& time)
 {
   std::stringstream strs;
   strs << std::put_time(std::gmtime(&time.time),  // NOLINT

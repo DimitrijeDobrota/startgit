@@ -12,7 +12,6 @@ commit::commit(git2wrap::commit cmmt)
     : m_commit(std::move(cmmt))
     , m_diff(m_commit)
 {
-
 }
 
 std::string commit::get_id() const
@@ -47,7 +46,12 @@ std::string commit::get_summary() const
 
 std::string commit::get_time() const
 {
-  return long_to_string(m_commit.get_time());
+  return time_short(m_commit.get_author().get_time().time);
+}
+
+std::string commit::get_time_long() const
+{
+  return time_long(m_commit.get_author().get_time());
 }
 
 std::string commit::get_author_name() const
@@ -58,11 +62,6 @@ std::string commit::get_author_name() const
 std::string commit::get_author_email() const
 {
   return m_commit.get_author().get_name();
-}
-
-std::string commit::get_author_time() const
-{
-  return long_to_string(m_commit.get_author().get_time());
 }
 
 git2wrap::tree commit::get_tree() const

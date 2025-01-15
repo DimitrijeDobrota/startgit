@@ -57,6 +57,8 @@ void write_header(std::ostream& ost,
              .set("class", "theme_switch");
 
   ost << html::div().set("id", "content");
+  html::div().tgl_state();
+
   ost << html::main();
   ost << html::label(" ")
              .set("for", "theme_switch")
@@ -179,7 +181,7 @@ void write_repo_table_entry(std::ostream& ost, const startgit::repository& repo)
                .add(html::td().add(html::a(repo.get_name()).set("href", url)))
                .add(html::td(repo.get_description()))
                .add(html::td(repo.get_owner()))
-               .add(html::td(branch.get_commits()[0].get_author_time()));
+               .add(html::td(branch.get_commits()[0].get_time_long()));
     break;
   }
 }
@@ -218,7 +220,7 @@ void write_files_table(std::ostream& ost, const startgit::branch& branch)
   ost << html::tbody();
 
   for (const auto& file : branch.get_files()) {
-    const auto url = std::format("./file/{}.html", file.get_path());
+    const auto url = std::format("./file/{}.html", file.get_path().string());
 
     ost << html::tr()
                .add(html::td(file.get_filemode()))
@@ -284,7 +286,7 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
                .add(html::td("&nbsp;"))
                .add(html::td(tag.get_name()))
                .add(html::td(tag.get_time()))
-               .add(html::td(tag.get_name()));
+               .add(html::td(tag.get_author()));
   }
 
   ost << html::tbody();
@@ -312,7 +314,7 @@ void write_file_changes(std::ostream& ost, const startgit::diff& diff)
   }
 
   ost << html::tbody() << html::table();
-  ost << html::span(
+  ost << html::p(
       std::format("{} files changed, {} insertions(+), {} deletions(-)",
                   diff.get_files_changed(),
                   diff.get_insertions(),
@@ -338,28 +340,26 @@ void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
 
       ost << html::h4();
       ost << std::format("@@ -{},{} +{},{} @@ ",
-                         hunk->new_start,
-                         hunk->new_lines,
                          hunk->old_start,
-                         hunk->old_lines);
+                         hunk->old_lines,
+                         hunk->new_start,
+                         hunk->new_lines);
 
       startgit::xmlencode(ost, header.substr(header.rfind('@') + 2));
       ost << html::h4();
 
+      ost << html::span().set("style", "white-space: pre");
       for (const auto& line : hunk.get_lines()) {
-        if (line.get_origin() == '-') {
-          ost << html::span().set(
-              "style", "color: var(--theme_green); white-space: pre;");
-        } else if (line.get_origin() == '+') {
-          ost << html::span().set("style",
-                                  "color: var(--theme_red); white-space: pre;");
-        } else {
-          ost << html::span().set("style", "white-space: pre;");
-        }
+        ost << html::div().set(
+            "style",
+            line.get_origin() == '+'       ? "color: var(--theme_green)"
+                : line.get_origin() == '-' ? "color: var(--theme_red)"
+                                           : "");
 
         startgit::xmlencode(ost, line.get_content());
-        ost << html::span();
+        ost << html::div();
       }
+      ost << html::span();
     }
   }
 }
@@ -393,7 +393,7 @@ void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
 
   ost << html::tr()
              .add(html::td().add(html::b("date")))
-             .add(html::td(commit.get_author_time()));
+             .add(html::td(commit.get_time_long()));
   ost << html::tbody() << html::table();
 
   ost << html::br() << html::p().set("style", "white-space: pre;");
@@ -405,9 +405,23 @@ void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
   write_file_diffs(ost, commit.get_diff());
 }
 
+void write_file_title(std::ostream& ost, const startgit::file& file)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << html::h3(std::format(
+      "{} ({}B)", file.get_path().filename().string(), file.get_size()));
+  ost << html::hr();
+}
+
 void write_file_content(std::ostream& ost, const startgit::file& file)
 {
   using namespace hemplate;  // NOLINT
+
+  if (file.is_binary()) {
+    ost << html::h4("Binary file");
+    return;
+  }
 
   const std::string str(file.get_content(), file.get_size());
   std::stringstream sstr(str);
@@ -416,7 +430,8 @@ void write_file_content(std::ostream& ost, const startgit::file& file)
 
   ost << html::span().set("style", "white-space: pre;");
   for (int count = 1; std::getline(sstr, line, '\n'); count++) {
-    ost << std::format(R"(<a id="{}" href="#{}">{:5}</a>)", count, count, count);
+    ost << std::format(
+        R"(<a id="{}" href="#{}">{:5}</a>)", count, count, count);
     ost << "  ";
     startgit::xmlencode(ost, line);
     ost << '\n';
@@ -429,7 +444,10 @@ void write_footer(std::ostream& ost)
   using namespace hemplate;  // NOLINT
 
   ost << html::main();
+
+  html::div().tgl_state();
   ost << html::div();
+
   ost << html::script(" ").set(
       "src", "https://www.dimitrijedobrota.com/scripts/main.js");
   ost << html::script(
@@ -520,12 +538,13 @@ void write_files(const std::filesystem::path& base,
                  const startgit::branch& branch)
 {
   for (const auto& file : branch.get_files()) {
-    const std::filesystem::path path = base / (file.get_path() + ".html");
+    const std::filesystem::path path =
+        base / (file.get_path().string() + ".html");
     std::filesystem::create_directories(path.parent_path());
     std::ofstream ofs(path);
 
     std::string back = "../";
-    for (const char chr : file.get_path()) {
+    for (const char chr : file.get_path().string()) {
       if (chr == '/') {
         back += "../";
       }
@@ -533,6 +552,7 @@ void write_files(const std::filesystem::path& base,
 
     write_header(ofs, repo, branch, file.get_path());
     write_title(ofs, repo, branch.get_name(), back);
+    write_file_title(ofs, file);
     write_file_content(ofs, file);
     write_footer(ofs);
   }

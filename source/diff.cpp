@@ -16,7 +16,7 @@ diff::diff(const git2wrap::commit& cmmt)
   opts.flags = GIT_DIFF_DISABLE_PATHSPEC_MATCH | GIT_DIFF_IGNORE_SUBMODULES
       | GIT_DIFF_INCLUDE_TYPECHANGE;
 
-  m_diff = git2wrap::diff::tree_to_tree(cmmt.get_tree(), ptree, &opts);
+  m_diff = git2wrap::diff::tree_to_tree(ptree, cmmt.get_tree(), &opts);
   m_stats = m_diff.get_stats();
 
   m_diff.foreach(file_cb, nullptr, hunk_cb, line_cb, this);
