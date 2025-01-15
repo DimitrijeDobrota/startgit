@@ -13,19 +13,16 @@
 #include "utils.hpp"
 
 void write_header(std::ostream& ost,
-                  const std::string& repo,
-                  const std::string& branch,
-                  const std::string& author,
-                  const std::string& description)
+                  const std::string& title,
+                  const std::string& description,
+                  const std::string& author)
 {
   using namespace hemplate;  // NOLINT
-
-  const std::string name = repo + " - " + branch;
 
   ost << html::doctype();
   ost << html::html().set("lang", "en");
   ost << html::head()
-             .add(html::title(name))
+             .add(html::title(title))
              // Meta tags
              .add(html::meta({{"charset", "UTF-8"}}))
              .add(html::meta({{"name", "author"}, {"content", author}}))
@@ -64,6 +61,20 @@ void write_header(std::ostream& ost,
   ost << html::label(" ")
              .set("for", "theme_switch")
              .set("class", "switch_label");
+}
+
+void write_header(std::ostream& ost,
+                  const startgit::repository& repo,
+                  const startgit::branch& branch,
+                  const std::string& description)
+{
+  write_header(ost,
+               std::format("{}({}) - {}",
+                           repo.get_name(),
+                           branch.get_name(),
+                           repo.get_description()),
+               description,
+               repo.get_owner());
 }
 
 void write_title(std::ostream& ost,
@@ -439,11 +450,7 @@ void write_log(const std::filesystem::path& base,
 {
   std::ofstream ofs(base / "log.html");
 
-  write_header(ofs,
-               repo.get_name(),
-               branch.get_name(),
-               repo.get_owner(),
-               repo.get_description());
+  write_header(ofs, repo, branch, "Commit list");
   write_title(ofs, repo, branch.get_name());
   write_commit_table(ofs, branch);
   write_footer(ofs);
@@ -455,11 +462,7 @@ void write_files(const std::filesystem::path& base,
 {
   std::ofstream ofs(base / "files.html");
 
-  write_header(ofs,
-               repo.get_name(),
-               branch.get_name(),
-               repo.get_owner(),
-               repo.get_description());
+  write_header(ofs, repo, branch, "File list");
   write_title(ofs, repo, branch.get_name());
   write_files_table(ofs, branch);
   write_footer(ofs);
@@ -471,11 +474,7 @@ void write_refs(const std::filesystem::path& base,
 {
   std::ofstream ofs(base / "refs.html");
 
-  write_header(ofs,
-               repo.get_name(),
-               branch.get_name(),
-               repo.get_owner(),
-               repo.get_description());
+  write_header(ofs, repo, branch, "Refs list");
   write_title(ofs, repo, branch.get_name());
   write_branch_table(ofs, repo, branch.get_name());
   write_tag_table(ofs, repo);
@@ -490,11 +489,7 @@ void write_commits(const std::filesystem::path& base,
     const std::string filename = commit.get_id() + ".html";
     std::ofstream ofs(base / filename);
 
-    write_header(ofs,
-                 repo.get_name(),
-                 branch.get_name(),
-                 "Dimitrije Dobrota",
-                 commit.get_summary());
+    write_header(ofs, repo, branch, commit.get_summary());
     write_title(ofs, repo, branch.get_name(), "../");
     write_commit_diff(ofs, commit);
     write_footer(ofs);
@@ -582,9 +577,8 @@ int main(int argc, char* argv[])
   std::ofstream ofs(args.output_dir / "index.html");
   write_header(ofs,
                "Git repository",
-               "~",
-               "Dimitrije Dobrota",
-               "Collection of all public git repositories");
+               "Collection of all public projects",
+               "Dimitrije Dobrota");
   write_repo_table(ofs, index);
   write_footer(ofs);
   /*
