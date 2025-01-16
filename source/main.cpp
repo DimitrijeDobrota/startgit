@@ -182,8 +182,11 @@ void write_repo_table_entry(std::ostream& ost, const startgit::repository& repo)
                .add(html::td(repo.get_description()))
                .add(html::td(repo.get_owner()))
                .add(html::td(branch.get_commits()[0].get_time_long()));
-    break;
+    return;
   }
+
+  std::cerr << std::format("Warning: {} doesn't have master branch\n",
+                           repo.get_path().string());
 }
 
 void write_repo_table(std::ostream& ost, const std::stringstream& index)
@@ -606,58 +609,52 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const git2wrap::libgit2 libgit;
-  std::stringstream index;
+  try {
+    const git2wrap::libgit2 libgit;
+    std::stringstream index;
 
-  for (const auto& repo_path : args.repos) {
-    try {
-      const startgit::repository repo(repo_path);
-      const std::filesystem::path base = args.output_dir / repo.get_name();
-      std::filesystem::create_directory(base);
+    for (const auto& repo_path : args.repos) {
+      try {
+        const startgit::repository repo(repo_path);
+        const std::filesystem::path base = args.output_dir / repo.get_name();
+        std::filesystem::create_directory(base);
 
-      for (const auto& branch : repo.get_branches()) {
-        const std::filesystem::path base_branch = base / branch.get_name();
-        std::filesystem::create_directory(base_branch);
+        for (const auto& branch : repo.get_branches()) {
+          const std::filesystem::path base_branch = base / branch.get_name();
+          std::filesystem::create_directory(base_branch);
 
-        write_log(base_branch, repo, branch);
-        write_file(base_branch, repo, branch);
-        write_refs(base_branch, repo, branch);
+          write_log(base_branch, repo, branch);
+          write_file(base_branch, repo, branch);
+          write_refs(base_branch, repo, branch);
 
-        const std::filesystem::path commit = base_branch / "commit";
-        std::filesystem::create_directory(commit);
+          const std::filesystem::path commit = base_branch / "commit";
+          std::filesystem::create_directory(commit);
 
-        write_commits(commit, repo, branch);
+          write_commits(commit, repo, branch);
 
-        const std::filesystem::path file = base_branch / "file";
-        std::filesystem::create_directory(file);
+          const std::filesystem::path file = base_branch / "file";
+          std::filesystem::create_directory(file);
 
-        write_files(file, repo, branch);
+          write_files(file, repo, branch);
+        }
+
+        write_repo_table_entry(index, repo);
+      } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
+        std::cerr << std::format("Warning: {} is not a repository\n",
+                                 repo_path.string());
       }
-
-      write_repo_table_entry(index, repo);
-    } catch (const git2wrap::error& err) {
-      std::cerr << std::format("Warning: {} is not a repository\n",
-                               repo_path.string());
     }
-  }
 
-  std::ofstream ofs(args.output_dir / "index.html");
-  write_header(ofs,
-               "Git repository",
-               "Collection of all public projects",
-               "Dimitrije Dobrota");
-  write_repo_table(ofs, index);
-  write_footer(ofs);
-  /*
-  catch (const git2wrap::error& err) {
-    std::cerr << std::format("({}:{}) Error {}/{}: {}\n",
-                             err.get_file(),
-                             err.get_line(),
-                             err.get_error(),
-                             err.get_klass(),
-                             err.get_message());
+    std::ofstream ofs(args.output_dir / "index.html");
+    write_header(ofs,
+                 "Git repository",
+                 "Collection of all public projects",
+                 "Dimitrije Dobrota");
+    write_repo_table(ofs, index);
+    write_footer(ofs);
+  } catch (const git2wrap::runtime_error& err) {
+    std::cerr << std::format("Error: {}\n", err.what());
   }
-  */
 
   return 0;
 }

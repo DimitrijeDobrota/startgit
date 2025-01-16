@@ -22,6 +22,10 @@ branch::branch(git2wrap::branch brnch, repository& repo)
     m_commits.emplace_back(std::move(commit));
   }
 
+  if (m_commits.empty()) {
+    return;
+  }
+
   std::function<void(const git2wrap::tree&, const std::string& path)> traverse =
       [&](const auto& l_tree, const auto& path)
   {
