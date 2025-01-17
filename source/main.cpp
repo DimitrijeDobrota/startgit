@@ -3,10 +3,12 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <unordered_set>
 
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
 #include <hemplate/classes.hpp>
+#include <md4c-html.h>
 #include <poafloc/poafloc.hpp>
 
 #include "repository.hpp"
@@ -123,9 +125,9 @@ void write_title(std::ostream& ost,
           .add(html::text(" | "))
           .add(html::a("Refs").set("href", relpath + "refs.html"))
           .add(html::text(" | "))
-          .add(html::a("README").set("href", "./"))
+          .add(html::a("README").set("href", "./README.html"))
           .add(html::text(" | "))
-          .add(html::a("LICENCE").set("href", "./"))
+          .add(html::a("LICENSE").set("href", "./LICENSE.html"))
           .add(html::text(" | "))
           .add(dropdown));
 
@@ -442,6 +444,23 @@ void write_file_content(std::ostream& ost, const startgit::file& file)
   ost << html::span();
 }
 
+void write_html(std::ostream& ost, const startgit::file& file)
+{
+  static const auto process_output =
+      +[](const MD_CHAR* str, MD_SIZE size, void* data)
+  {
+    std::ofstream& ofs = *static_cast<std::ofstream*>(data);
+    ofs << std::string(str, size);
+  };
+
+  md_html(file.get_content(),
+          static_cast<MD_SIZE>(file.get_size()),
+          process_output,
+          &ost,
+          MD_DIALECT_GITHUB,
+          0);
+}
+
 void write_footer(std::ostream& ost)
 {
   using namespace hemplate;  // NOLINT
@@ -561,6 +580,30 @@ void write_files(const std::filesystem::path& base,
   }
 }
 
+void write_readme_licence(const std::filesystem::path& base,
+                          const startgit::repository& repo,
+                          const startgit::branch& branch)
+{
+  static const std::unordered_set<std::filesystem::path> paths {
+      "README",
+      "README.md",
+      "LICENSE",
+      "LICENSE.md",
+  };
+
+  for (const auto& file : branch.get_files()) {
+    if (!paths.contains(file.get_path())) {
+      continue;
+    }
+
+    std::ofstream ofs(base / file.get_path().replace_extension("html"));
+    write_header(ofs, repo, branch, file.get_path());
+    write_title(ofs, repo, branch.get_name());
+    write_html(ofs, file);
+    write_footer(ofs);
+  }
+}
+
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
   auto* args = static_cast<arguments_t*>(parser->input());
@@ -626,6 +669,7 @@ int main(int argc, char* argv[])
           write_log(base_branch, repo, branch);
           write_file(base_branch, repo, branch);
           write_refs(base_branch, repo, branch);
+          write_readme_licence(base_branch, repo, branch);
 
           const std::filesystem::path commit = base_branch / "commit";
           std::filesystem::create_directory(commit);

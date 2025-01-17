@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.1.21
+    VERSION 0.1.22
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
@@ -17,6 +17,7 @@ include(cmake/variables.cmake)
 
 find_package(git2wrap CONFIG REQUIRED)
 find_package(hemplate 0.2 CONFIG REQUIRED)
+find_package(md4c CONFIG REQUIRED)
 find_package(poafloc 1 CONFIG REQUIRED)
 
 # ---- Declare library ----
@@ -32,7 +33,7 @@ add_library(
     source/utils.cpp
 )
 
-target_link_libraries(startgit_lib PUBLIC git2wrap::git2wrap hemplate::hemplate poafloc::poafloc)
+target_link_libraries(startgit_lib PUBLIC git2wrap::git2wrap hemplate::hemplate poafloc::poafloc md4c::md4c-html)
 
 target_include_directories(
     startgit_lib ${warning_guard}
