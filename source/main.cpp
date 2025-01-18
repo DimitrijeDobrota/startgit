@@ -14,6 +14,18 @@
 #include "repository.hpp"
 #include "utils.hpp"
 
+struct arguments_t
+{
+  std::filesystem::path output_dir = ".";
+  std::vector<std::filesystem::path> repos;
+  std::string url = "https://dimitrijedobrota.com";
+  std::string author = "Dimitrije Dobrota";
+  std::string title = "Collection of git repositories";
+  std::string description = "Publicly available personal projects";
+};
+
+static arguments_t args;  // NOLINT
+
 void write_header(std::ostream& ost,
                   const std::string& title,
                   const std::string& description,
@@ -34,24 +46,17 @@ void write_header(std::ostream& ost,
                  html::meta({{"content", "width=device-width, initial-scale=1"},
                              {"name", "viewport"}}))
              // Stylesheets
-             .add(
-                 html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                     .set("href", "https://dimitrijedobrota.com/css/index.css"))
              .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href",
-                           "https://dimitrijedobrota.com/css/colors.css"))
+                      .set("href", args.url + "/css/index.css"))
+             .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
+                      .set("href", args.url + "/css/colors.css"))
              // Icons
-             .add(
-                 html::link({{"rel", "icon"}, {"type", "image/png"}})
-                     .set("sizes", "32x32")
-                     .set("href",
-                          "https://dimitrijedobrota.com/img/favicon-32x32.png"))
-             .add(
-                 html::link({{"rel", "icon"}, {"type", "image/png"}})
-                     .set("sizes", "16x16")
-                     .set(
-                         "href",
-                         "https://dimitrijedobrota.com/img/favicon-16x16.png"));
+             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
+                      .set("sizes", "32x32")
+                      .set("href", args.url + "/img/favicon-32x32.png"))
+             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
+                      .set("sizes", "16x16")
+                      .set("href", args.url + "/img/favicon-16x16.png"));
   ost << html::body();
   ost << html::input()
              .set("type", "checkbox")
@@ -183,7 +188,7 @@ void write_repo_table_entry(std::ostream& ost, const startgit::repository& repo)
                .add(html::td().add(html::a(repo.get_name()).set("href", url)))
                .add(html::td(repo.get_description()))
                .add(html::td(repo.get_owner()))
-               .add(html::td(branch.get_commits()[0].get_time_long()));
+               .add(html::td(branch.get_commits()[0].get_time()));
     return;
   }
 
@@ -194,6 +199,9 @@ void write_repo_table_entry(std::ostream& ost, const startgit::repository& repo)
 void write_repo_table(std::ostream& ost, const std::stringstream& index)
 {
   using namespace hemplate;  // NOLINT
+
+  ost << html::h1(args.title);
+  ost << html::p(args.description);
 
   ost << html::table();
   ost << html::thead();
@@ -311,7 +319,7 @@ void write_file_changes(std::ostream& ost, const startgit::diff& diff)
     const std::string link = std::format("#{}", delta->new_file.path);
 
     ost << html::tr()
-               .add(html::td(std::string(1, marker[delta->status])))
+               .add(html::td(std::string(1, marker[delta->status])))  // NOLINT
                .add(html::td().add(
                    html::a(delta->new_file.path).set("href", link)))
                .add(html::td("|"))
@@ -470,8 +478,7 @@ void write_footer(std::ostream& ost)
   html::div().tgl_state();
   ost << html::div();
 
-  ost << html::script(" ").set(
-      "src", "https://www.dimitrijedobrota.com/scripts/main.js");
+  ost << html::script(" ").set("src", args.url + "/scripts/main.js");
   ost << html::script(
       "function switchPage(value) {"
       "   let arr = window.location.href.split('/');"
@@ -495,13 +502,6 @@ void write_footer(std::ostream& ost)
   ost << html::body();
   ost << html::html();
 }
-
-struct arguments_t
-{
-  std::filesystem::path output_dir = ".";
-  std::vector<std::filesystem::path> repos;
-  std::string url;
-};
 
 void write_log(const std::filesystem::path& base,
                const startgit::repository& repo,
@@ -606,16 +606,22 @@ void write_readme_licence(const std::filesystem::path& base,
 
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
-  auto* args = static_cast<arguments_t*>(parser->input());
+  auto* l_args = static_cast<arguments_t*>(parser->input());
   switch (key) {
     case 'o':
-      args->output_dir = arg;
+      l_args->output_dir = arg;
       break;
     case 'u':
-      args->url = arg;
+      l_args->url = arg;
+      break;
+    case 'a':
+      l_args->author = arg;
+      break;
+    case 'd':
+      l_args->description = arg;
       break;
     case poafloc::ARG:
-      args->repos.emplace_back(std::filesystem::canonical(arg));
+      l_args->repos.emplace_back(std::filesystem::canonical(arg));
       break;
     default:
       break;
@@ -630,6 +636,9 @@ static const poafloc::option_t options[] = {
     {"output", 'o', "DIR", 0, "Output directory"},
     {0, 0, 0, 0, "General information", 2},
     {"url", 'u', "BASEURL", 0, "Base URL to make links in the Atom feeds absolute"},
+    {"author", 'a', "NAME", 0, "Owner of the repository"},
+    {"title", 't', "TITLE", 0, "Title for the index page"},
+    {"description", 'd', "DESC", 0, "Description for the index page"},
     {0, 0, 0, 0, "Informational Options", -1},
     {0},
 };
@@ -645,8 +654,6 @@ static const poafloc::arg_t arg {
 
 int main(int argc, char* argv[])
 {
-  arguments_t args;
-
   if (poafloc::parse(&arg, argc, argv, 0, &args) != 0) {
     std::cerr << "There was an error while parsing arguments";
     return 1;
@@ -690,14 +697,15 @@ int main(int argc, char* argv[])
     }
 
     std::ofstream ofs(args.output_dir / "index.html");
-    write_header(ofs,
-                 "Git repository",
-                 "Collection of all public projects",
-                 "Dimitrije Dobrota");
+    write_header(ofs, args.title, args.description, args.author);
     write_repo_table(ofs, index);
     write_footer(ofs);
   } catch (const git2wrap::runtime_error& err) {
+    std::cerr << std::format("Error (git2wrap): {}\n", err.what());
+  } catch (const std::runtime_error& err) {
     std::cerr << std::format("Error: {}\n", err.what());
+  } catch (...) {
+    std::cerr << std::format("Unknown error\n");
   }
 
   return 0;
