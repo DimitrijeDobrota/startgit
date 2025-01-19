@@ -1,3 +1,4 @@
+#include <chrono>
 #include <format>
 #include <iomanip>
 #include <sstream>
@@ -9,21 +10,25 @@
 namespace startgit
 {
 
-std::string time_short(int64_t date)
+auto sec_since_epoch(std::int64_t sec)
 {
-  std::stringstream strs;
-  strs << std::put_time(std::gmtime(&date), "%Y-%m-%d %H:%M");  // NOLINT
-  return strs.str();
+  return std::chrono::time_point_cast<std::chrono::seconds>(
+      std::chrono::system_clock::from_time_t(time_t {0})
+      + std::chrono::seconds(sec));
+}
+
+std::string time_short(std::int64_t date)
+{
+  return std::format("{:%Y-%m-%d %H:%M}", sec_since_epoch(date));
 }
 
 std::string time_long(const git2wrap::time& time)
 {
-  std::stringstream strs;
-  strs << std::put_time(std::gmtime(&time.time),  // NOLINT
-                        "%a, %e %b %Y %H:%M:%S ");
-  strs << (time.offset < 0 ? '-' : '+');
-  strs << std::format("{:02}{:02}", time.offset / 60, time.offset % 60);
-  return strs.str();
+  return std::format("{:%a, %e %b %Y %H:%M:%S} {}{:02}{:02}",
+                     sec_since_epoch(time.time),
+                     time.offset < 0 ? '-' : '+',
+                     time.offset / 60,  // NOLINT
+                     time.offset % 60);  // NOLINT
 }
 // NOLINTBEGIN
 // clang-format off

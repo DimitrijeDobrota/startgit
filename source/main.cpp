@@ -18,7 +18,8 @@ struct arguments_t
 {
   std::filesystem::path output_dir = ".";
   std::vector<std::filesystem::path> repos;
-  std::string url = "https://dimitrijedobrota.com";
+  std::string resource_url = "https://dimitrijedobrota.com";
+  std::string base_url = "https://git.dimitrijedobrota.com";
   std::string author = "Dimitrije Dobrota";
   std::string title = "Collection of git repositories";
   std::string description = "Publicly available personal projects";
@@ -47,16 +48,18 @@ void write_header(std::ostream& ost,
                              {"name", "viewport"}}))
              // Stylesheets
              .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href", args.url + "/css/index.css"))
+                      .set("href", args.resource_url + "/css/index.css"))
              .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href", args.url + "/css/colors.css"))
+                      .set("href", args.resource_url + "/css/colors.css"))
              // Icons
-             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
-                      .set("sizes", "32x32")
-                      .set("href", args.url + "/img/favicon-32x32.png"))
+             .add(
+                 html::link({{"rel", "icon"}, {"type", "image/png"}})
+                     .set("sizes", "32x32")
+                     .set("href", args.resource_url + "/img/favicon-32x32.png"))
              .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
                       .set("sizes", "16x16")
-                      .set("href", args.url + "/img/favicon-16x16.png"));
+                      .set("href",
+                           args.resource_url + "/img/favicon-16x16.png"));
   ost << html::body();
   ost << html::input()
              .set("type", "checkbox")
@@ -478,7 +481,7 @@ void write_footer(std::ostream& ost)
   html::div().tgl_state();
   ost << html::div();
 
-  ost << html::script(" ").set("src", args.url + "/scripts/main.js");
+  ost << html::script(" ").set("src", args.resource_url + "/scripts/main.js");
   ost << html::script(
       "function switchPage(value) {"
       "   let arr = window.location.href.split('/');"
@@ -604,6 +607,78 @@ void write_readme_licence(const std::filesystem::path& base,
   }
 }
 
+void write_atom(std::ostream& ost,
+                const startgit::branch& branch,
+                const std::string& base_url)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << atom::feed();
+  ost << atom::title(args.title);
+  ost << atom::subtitle(args.description);
+
+  ost << atom::id(base_url + '/');
+  ost << atom::updated(atom::format_time_now());
+  ost << atom::author().add(atom::name(args.author));
+  ost << atom::link(" ", {{"rel", "self"}, {"href", base_url + "/atom.xml"}});
+  ost << atom::link(" ",
+                    {{"href", args.resource_url},
+                     {"rel", "alternate"},
+                     {"type", "text/html"}});
+
+  for (const auto& commit : branch.get_commits()) {
+    const auto url =
+        std::format("{}/commit/{}.html", base_url, commit.get_id());
+
+    ost << atom::entry()
+               .add(atom::id(url))
+               .add(atom::updated(atom::format_time(commit.get_time_raw())))
+               .add(atom::title(commit.get_summary()))
+               .add(atom::link(" ").set("href", url))
+               .add(atom::author()
+                        .add(atom::name(commit.get_author_name()))
+                        .add(atom::email(commit.get_author_email())))
+               .add(atom::content(commit.get_message()));
+  }
+
+  ost << atom::feed();
+}
+
+void write_rss(std::ostream& ost,
+               const startgit::branch& branch,
+               const std::string& base_url)
+{
+  using namespace hemplate;  // NOLINT
+
+  ost << xml();
+  ost << rss::rss();
+  ost << rss::channel();
+
+  ost << rss::title(args.title);
+  ost << rss::description(args.description);
+  ost << rss::link(base_url + '/');
+  ost << rss::generator("startgit");
+  ost << rss::language("en-us");
+  ost << rss::atomLink().set("href", base_url + "/atom.xml");
+
+  for (const auto& commit : branch.get_commits()) {
+    const auto url =
+        std::format("{}/commit/{}.html", base_url, commit.get_id());
+
+    ost << rss::item()
+               .add(rss::title(commit.get_summary()))
+               .add(rss::link(url))
+               .add(rss::guid(url))
+               .add(rss::pubDate(rss::format_time(commit.get_time_raw())))
+               .add(rss::author(std::format("{} ({})",
+                                            commit.get_author_email(),
+                                            commit.get_author_name())));
+  }
+
+  ost << rss::channel();
+  ost << rss::rss();
+}
+
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
   auto* l_args = static_cast<arguments_t*>(parser->input());
@@ -611,8 +686,17 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
     case 'o':
       l_args->output_dir = arg;
       break;
-    case 'u':
-      l_args->url = arg;
+    case 'b':
+      l_args->base_url = arg;
+      if (l_args->base_url.back() == '/') {
+        l_args->base_url.pop_back();
+      }
+      break;
+    case 'r':
+      l_args->resource_url = arg;
+      if (l_args->resource_url.back() == '/') {
+        l_args->resource_url.pop_back();
+      }
       break;
     case 'a':
       l_args->author = arg;
@@ -635,7 +719,8 @@ static const poafloc::option_t options[] = {
     {0, 0, 0, 0, "Output mode", 1},
     {"output", 'o', "DIR", 0, "Output directory"},
     {0, 0, 0, 0, "General information", 2},
-    {"url", 'u', "BASEURL", 0, "Base URL to make links in the Atom feeds absolute"},
+    {"base", 'b', "URL", 0, "Absolute destination URL"},
+    {"resource", 'r', "URL", 0, "URL that houses styles and scripts"},
     {"author", 'a', "NAME", 0, "Owner of the repository"},
     {"title", 't', "TITLE", 0, "Title for the index page"},
     {"description", 'd', "DESC", 0, "Description for the index page"},
@@ -663,6 +748,7 @@ int main(int argc, char* argv[])
     const git2wrap::libgit2 libgit;
     std::stringstream index;
 
+    std::filesystem::create_directories(args.output_dir);
     for (const auto& repo_path : args.repos) {
       try {
         const startgit::repository repo(repo_path);
@@ -687,6 +773,17 @@ int main(int argc, char* argv[])
           std::filesystem::create_directory(file);
 
           write_files(file, repo, branch);
+
+          const auto relative =
+              std::filesystem::relative(base_branch, args.output_dir).string();
+
+          std::ofstream atom(base_branch / "atom.xml");
+          write_atom(
+              atom, branch, "https://git.dimitrijedobrota.com/" + relative);
+
+          std::ofstream rss(base_branch / "rss.xml");
+          write_rss(
+              rss, branch, "https://git.dimitrijedobrota.com/" + relative);
         }
 
         write_repo_table_entry(index, repo);

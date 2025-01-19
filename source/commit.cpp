@@ -54,6 +54,11 @@ std::string commit::get_time_long() const
   return time_long(m_commit.get_author().get_time());
 }
 
+int64_t commit::get_time_raw() const
+{
+  return m_commit.get_author().get_time().time;
+}
+
 std::string commit::get_author_name() const
 {
   return m_commit.get_author().get_name();
@@ -61,7 +66,7 @@ std::string commit::get_author_name() const
 
 std::string commit::get_author_email() const
 {
-  return m_commit.get_author().get_name();
+  return m_commit.get_author().get_email();
 }
 
 git2wrap::tree commit::get_tree() const

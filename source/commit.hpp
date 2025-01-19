@@ -22,6 +22,7 @@ public:
   std::string get_summary() const;
   std::string get_time() const;
   std::string get_time_long() const;
+  int64_t get_time_raw() const;
   std::string get_author_name() const;
   std::string get_author_email() const;
   git2wrap::tree get_tree() const;
