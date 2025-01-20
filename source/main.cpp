@@ -133,9 +133,9 @@ void write_title(std::ostream& ost,
           .add(html::text(" | "))
           .add(html::a("Refs").set("href", relpath + "refs.html"))
           .add(html::text(" | "))
-          .add(html::a("README").set("href", "./README.html"))
+          .add(html::a("README").set("href", relpath + "README.html"))
           .add(html::text(" | "))
-          .add(html::a("LICENSE").set("href", "./LICENSE.html"))
+          .add(html::a("LICENSE").set("href", relpath + "LICENSE.html"))
           .add(html::text(" | "))
           .add(dropdown));
 
