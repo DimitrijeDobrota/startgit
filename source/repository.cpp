@@ -19,8 +19,6 @@ repository::repository(const std::filesystem::path& path)
        it != m_repo.branch_end();
        ++it)
   {
-    // const branch brnch(it->dup(), *this);
-    // m_branches.push_front(std::move(brnch));
     m_branches.emplace_back(it->dup(), *this);
   }
 

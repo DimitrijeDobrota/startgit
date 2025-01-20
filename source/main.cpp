@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <unordered_set>
 
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
@@ -111,7 +110,7 @@ void write_header(std::ostream& ost,
 
 void write_title(std::ostream& ost,
                  const startgit::repository& repo,
-                 const std::string& branch_name,
+                 const startgit::branch& branch,
                  const std::string& relpath = "./")
 {
   using namespace hemplate;  // NOLINT
@@ -123,10 +122,10 @@ void write_title(std::ostream& ost,
     span.add(html::select(
         {{"id", "branch"}, {"onChange", "switchPage(this.value)"}}));
 
-    for (const auto& branch : repo.get_branches()) {
-      auto option = html::option(branch.get_name());
-      option.set("value", branch.get_name());
-      if (branch.get_name() == branch_name) {
+    for (const auto& c_branch : repo.get_branches()) {
+      auto option = html::option(c_branch.get_name());
+      option.set("value", c_branch.get_name());
+      if (c_branch.get_name() == branch.get_name()) {
         option.set("selected", "true");
       }
       span.add(option);
@@ -145,19 +144,21 @@ void write_title(std::ostream& ost,
           .add(html::text("git clone "))
           .add(html::a(repo.get_url()).set("href", repo.get_url())));
 
-  ost << html::tr().add(
-      html::td()
-          .add(html::a("Log").set("href", relpath + "log.html"))
-          .add(html::text(" | "))
-          .add(html::a("Files").set("href", relpath + "files.html"))
-          .add(html::text(" | "))
-          .add(html::a("Refs").set("href", relpath + "refs.html"))
-          .add(html::text(" | "))
-          .add(html::a("README").set("href", relpath + "README.html"))
-          .add(html::text(" | "))
-          .add(html::a("LICENSE").set("href", relpath + "LICENSE.html"))
-          .add(html::text(" | "))
-          .add(dropdown));
+  ost << html::tr() << html::td();
+  ost << html::a("Log").set("href", relpath + "log.html");
+  ost << html::text(" | ")
+      << html::a("Files").set("href", relpath + "files.html");
+  ost << html::text(" | ")
+      << html::a("Refs").set("href", relpath + "refs.html");
+
+  for (const auto& file : branch.get_special()) {
+    const auto filename = file.get_path().replace_extension("html").string();
+    const auto name = file.get_path().replace_extension().string();
+    ost << html::text(" | ") << html::a(name).set("href", relpath + filename);
+  }
+
+  ost << html::text(" | ") << dropdown;
+  ost << html::td() << html::tr();
 
   ost << html::table();
   ost << html::hr();
@@ -535,7 +536,7 @@ void write_log(const std::filesystem::path& base,
   std::ofstream ofs(base / "log.html");
 
   write_header(ofs, repo, branch, "Commit list");
-  write_title(ofs, repo, branch.get_name());
+  write_title(ofs, repo, branch);
   write_commit_table(ofs, branch);
   write_footer(ofs);
 }
@@ -547,7 +548,7 @@ void write_file(const std::filesystem::path& base,
   std::ofstream ofs(base / "files.html");
 
   write_header(ofs, repo, branch, "File list");
-  write_title(ofs, repo, branch.get_name());
+  write_title(ofs, repo, branch);
   write_files_table(ofs, branch);
   write_footer(ofs);
 }
@@ -559,7 +560,7 @@ void write_refs(const std::filesystem::path& base,
   std::ofstream ofs(base / "refs.html");
 
   write_header(ofs, repo, branch, "Refs list");
-  write_title(ofs, repo, branch.get_name());
+  write_title(ofs, repo, branch);
   write_branch_table(ofs, repo, branch.get_name());
   write_tag_table(ofs, repo);
   write_footer(ofs);
@@ -574,7 +575,7 @@ void write_commits(const std::filesystem::path& base,
     std::ofstream ofs(base / filename);
 
     write_header(ofs, repo, branch, commit.get_summary(), "../");
-    write_title(ofs, repo, branch.get_name(), "../");
+    write_title(ofs, repo, branch, "../");
     write_commit_diff(ofs, commit);
     write_footer(ofs);
   }
@@ -598,7 +599,7 @@ void write_files(const std::filesystem::path& base,
     }
 
     write_header(ofs, repo, branch, file.get_path(), relpath);
-    write_title(ofs, repo, branch.get_name(), relpath);
+    write_title(ofs, repo, branch, relpath);
     write_file_title(ofs, file);
     write_file_content(ofs, file);
     write_footer(ofs);
@@ -609,21 +610,10 @@ void write_readme_licence(const std::filesystem::path& base,
                           const startgit::repository& repo,
                           const startgit::branch& branch)
 {
-  static const std::unordered_set<std::filesystem::path> paths {
-      "README",
-      "README.md",
-      "LICENSE",
-      "LICENSE.md",
-  };
-
-  for (const auto& file : branch.get_files()) {
-    if (!paths.contains(file.get_path())) {
-      continue;
-    }
-
+  for (const auto& file : branch.get_special()) {
     std::ofstream ofs(base / file.get_path().replace_extension("html"));
     write_header(ofs, repo, branch, file.get_path());
-    write_title(ofs, repo, branch.get_name());
+    write_title(ofs, repo, branch);
     write_html(ofs, file);
     write_footer(ofs);
   }

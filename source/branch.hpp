@@ -30,6 +30,7 @@ public:
 
   const auto& get_commits() const { return m_commits; }
   const auto& get_files() const { return m_files; }
+  const auto& get_special() const { return m_special; }
 
 private:
   git2wrap::branch m_branch;
@@ -38,6 +39,7 @@ private:
 
   std::vector<commit> m_commits;
   std::vector<file> m_files;
+  std::vector<file> m_special;
 };
 
 }  // namespace startgit

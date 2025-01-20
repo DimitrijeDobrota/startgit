@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <functional>
+#include <unordered_set>
 
 #include "branch.hpp"
 
@@ -44,11 +46,23 @@ branch::branch(git2wrap::branch brnch, repository& repo)
           continue;
       }
 
+      static const std::unordered_set<std::filesystem::path> special {
+          "README.md",
+          "LICENSE.md",
+          "BUILDING.md",
+          "HACKING.md",
+      };
+
       m_files.emplace_back(entry, full_path);
+      if (!path.empty() || !special.contains(entry.get_name())) {
+        continue;
+      }
+      m_special.emplace_back(entry, full_path);
     }
   };
 
   traverse(get_last_commit().get_tree(), "");
+  std::reverse(m_special.begin(), m_special.end());
 }
 
 }  // namespace startgit
