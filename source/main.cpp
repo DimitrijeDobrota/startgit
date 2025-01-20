@@ -30,36 +30,52 @@ static arguments_t args;  // NOLINT
 void write_header(std::ostream& ost,
                   const std::string& title,
                   const std::string& description,
-                  const std::string& author)
+                  const std::string& author,
+                  const std::string& relpath = "./",
+                  bool has_feed = true)
 {
   using namespace hemplate;  // NOLINT
 
   ost << html::doctype();
   ost << html::html().set("lang", "en");
-  ost << html::head()
-             .add(html::title(title))
-             // Meta tags
-             .add(html::meta({{"charset", "UTF-8"}}))
-             .add(html::meta({{"name", "author"}, {"content", author}}))
-             .add(html::meta(
-                 {{"name", "description"}, {"content", description}}))
-             .add(
-                 html::meta({{"content", "width=device-width, initial-scale=1"},
-                             {"name", "viewport"}}))
-             // Stylesheets
-             .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href", args.resource_url + "/css/index.css"))
-             .add(html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-                      .set("href", args.resource_url + "/css/colors.css"))
-             // Icons
-             .add(
-                 html::link({{"rel", "icon"}, {"type", "image/png"}})
-                     .set("sizes", "32x32")
-                     .set("href", args.resource_url + "/img/favicon-32x32.png"))
-             .add(html::link({{"rel", "icon"}, {"type", "image/png"}})
-                      .set("sizes", "16x16")
-                      .set("href",
-                           args.resource_url + "/img/favicon-16x16.png"));
+  ost << html::head();
+  ost << html::title(title);
+
+  // Meta tags
+  ost << html::meta({{"charset", "UTF-8"}});
+  ost << html::meta({{"name", "author"}, {"content", author}});
+  ost << html::meta({{"name", "description"}, {"content", description}});
+
+  ost << html::meta({{"content", "width=device-width, initial-scale=1"},
+                     {"name", "viewport"}});
+
+  // Stylesheets
+  ost << html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
+             .set("href", args.resource_url + "/css/index.css");
+  ost << html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
+             .set("href", args.resource_url + "/css/colors.css");
+
+  if (has_feed) {
+    // Rss feed
+    ost << html::link({{"rel", "alternate"},
+                       {"type", "application/atom+xml"},
+                       {"title", "RSS feed"},
+                       {"href", relpath + "rss.xml"}});
+    // Atom feed
+    ost << html::link({{"rel", "alternate"},
+                       {"type", "application/atom+xml"},
+                       {"title", "Atom feed"},
+                       {"href", relpath + "atom.xml"}});
+  }
+
+  // Icons
+  ost << html::link({{"rel", "icon"}, {"type", "image/png"}})
+             .set("sizes", "32x32")
+             .set("href", args.resource_url + "/img/favicon-32x32.png");
+  ost << html::link({{"rel", "icon"}, {"type", "image/png"}})
+             .set("sizes", "16x16")
+             .set("href", args.resource_url + "/img/favicon-16x16.png");
+  ost << html::head();
   ost << html::body();
   ost << html::input()
              .set("type", "checkbox")
@@ -78,7 +94,9 @@ void write_header(std::ostream& ost,
 void write_header(std::ostream& ost,
                   const startgit::repository& repo,
                   const startgit::branch& branch,
-                  const std::string& description)
+                  const std::string& description,
+                  const std::string& relpath = "./",
+                  bool has_feed = true)
 {
   write_header(ost,
                std::format("{}({}) - {}",
@@ -86,7 +104,9 @@ void write_header(std::ostream& ost,
                            branch.get_name(),
                            repo.get_description()),
                description,
-               repo.get_owner());
+               repo.get_owner(),
+               relpath,
+               has_feed);
 }
 
 void write_title(std::ostream& ost,
@@ -553,7 +573,7 @@ void write_commits(const std::filesystem::path& base,
     const std::string filename = commit.get_id() + ".html";
     std::ofstream ofs(base / filename);
 
-    write_header(ofs, repo, branch, commit.get_summary());
+    write_header(ofs, repo, branch, commit.get_summary(), "../");
     write_title(ofs, repo, branch.get_name(), "../");
     write_commit_diff(ofs, commit);
     write_footer(ofs);
@@ -570,15 +590,15 @@ void write_files(const std::filesystem::path& base,
     std::filesystem::create_directories(path.parent_path());
     std::ofstream ofs(path);
 
-    std::string back = "../";
+    std::string relpath = "../";
     for (const char chr : file.get_path().string()) {
       if (chr == '/') {
-        back += "../";
+        relpath += "../";
       }
     }
 
-    write_header(ofs, repo, branch, file.get_path());
-    write_title(ofs, repo, branch.get_name(), back);
+    write_header(ofs, repo, branch, file.get_path(), relpath);
+    write_title(ofs, repo, branch.get_name(), relpath);
     write_file_title(ofs, file);
     write_file_content(ofs, file);
     write_footer(ofs);
@@ -796,7 +816,12 @@ int main(int argc, char* argv[])
     }
 
     std::ofstream ofs(args.output_dir / "index.html");
-    write_header(ofs, args.title, args.description, args.author);
+    write_header(ofs,
+                 args.title,
+                 args.description,
+                 args.author,
+                 "./",
+                 /*has_feed=*/false);
     write_repo_table(ofs, index);
     write_footer(ofs);
   } catch (const git2wrap::runtime_error& err) {
