@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <span>
+
 #include "file.hpp"
 
 #include <git2wrap/repository.hpp>
@@ -28,6 +31,16 @@ const char* file::get_content() const
 git2wrap::object_size_t file::get_size() const
 {
   return m_blob.get_rawsize();
+}
+
+int file::get_lines() const
+{
+  if (m_lines != -1) {
+    return m_lines;
+  }
+
+  const auto span = std::span<const char>(get_content(), get_size());
+  return m_lines = static_cast<int>(std::count(span.begin(), span.end(), '\n'));
 }
 
 }  // namespace startgit

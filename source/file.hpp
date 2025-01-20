@@ -20,11 +20,14 @@ public:
   bool is_binary() const;
   const char* get_content() const;
   git2wrap::object_size_t get_size() const;
+  int get_lines() const;
 
 private:
   std::string m_filemode;
   std::filesystem::path m_path;
   git2wrap::blob m_blob;
+
+  mutable int m_lines = -1;
 };
 
 }  // namespace startgit

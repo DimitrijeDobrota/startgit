@@ -231,17 +231,19 @@ void write_files_table(std::ostream& ost, const startgit::branch& branch)
   ost << html::tr()
              .add(html::td("Mode"))
              .add(html::td("Name"))
-             .add(html::td("File"));
+             .add(html::td("Size"));
   ost << html::thead();
   ost << html::tbody();
 
   for (const auto& file : branch.get_files()) {
     const auto url = std::format("./file/{}.html", file.get_path().string());
+    const auto size = file.is_binary() ? std::format("{}B", file.get_size())
+                                       : std::format("{}L", file.get_lines());
 
     ost << html::tr()
                .add(html::td(file.get_filemode()))
                .add(html::td().add(html::a(file.get_path()).set("href", url)))
-               .add(html::td("0"));
+               .add(html::td(size));
   }
 
   ost << html::tbody();
@@ -684,7 +686,7 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
   auto* l_args = static_cast<arguments_t*>(parser->input());
   switch (key) {
     case 'o':
-      l_args->output_dir = arg;
+      l_args->output_dir = std::filesystem::canonical(arg).string();
       break;
     case 'b':
       l_args->base_url = arg;
