@@ -15,7 +15,6 @@ Checks: "*,\
   -modernize-use-trailing-return-type,\
   -cppcoreguidelines-pro-type-vararg,\
   -hicpp-vararg,\
-  -readability-avoid-nested-conditional-operator,\
   -misc-include-cleaner,\
   -misc-non-private-member-variables-in-classes"
 WarningsAsErrors: ''

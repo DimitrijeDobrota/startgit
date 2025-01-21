@@ -20,6 +20,15 @@ diff::diff(const git2wrap::commit& cmmt)
   m_stats = m_diff.get_stats();
 
   m_diff.foreach(file_cb, nullptr, hunk_cb, line_cb, this);
+
+  for (auto& delta : m_deltas) {
+    for (const auto& hunk : delta.get_hunks()) {
+      for (const auto& line : hunk.get_lines()) {
+        delta.m_adds += static_cast<uint32_t>(line.is_add());
+        delta.m_dels += static_cast<uint32_t>(line.is_del());
+      }
+    }
+  }
 }
 
 int diff::file_cb(const git_diff_delta* delta,

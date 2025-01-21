@@ -1,3 +1,5 @@
+#include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -344,12 +346,32 @@ void write_file_changes(std::ostream& ost, const startgit::diff& diff)
 
     const std::string link = std::format("#{}", delta->new_file.path);
 
+    uint32_t add = delta.get_adds();
+    uint32_t del = delta.get_dels();
+    const uint32_t changed = add + del;
+    const uint32_t total = 80;
+    if (changed > total) {
+      const double percent = 1.0 * total / changed;
+
+      if (add > 0) {
+        add = static_cast<uint32_t>(std::lround(percent * add) + 1);
+      }
+
+      if (del > 0) {
+        del = static_cast<uint32_t>(std::lround(percent * del) + 1);
+      }
+    }
+
     ost << html::tr()
                .add(html::td(std::string(1, marker[delta->status])))  // NOLINT
                .add(html::td().add(
                    html::a(delta->new_file.path).set("href", link)))
                .add(html::td("|"))
-               .add(html::td("..."));
+               .add(html::td()
+                        .add(html::span(" " + std::string(add, '+'))
+                                 .set("class", "add"))
+                        .add(html::span(" " + std::string(del, '-'))
+                                 .set("class", "del")));
   }
 
   ost << html::tbody() << html::table();
@@ -389,14 +411,16 @@ void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
 
       ost << html::span().set("style", "white-space: pre");
       for (const auto& line : hunk.get_lines()) {
-        ost << html::div().set(
-            "style",
-            line.get_origin() == '+'       ? "color: var(--theme_green)"
-                : line.get_origin() == '-' ? "color: var(--theme_red)"
-                                           : "");
+        auto div = html::div();
+        if (line.is_add()) {
+          div.set("class", "add");
+        } else if (line.is_del()) {
+          div.set("class", "del");
+        }
 
+        ost << div;
         startgit::xmlencode(ost, line.get_content());
-        ost << html::div();
+        ost << div;
       }
       ost << html::span();
     }
@@ -524,6 +548,10 @@ void write_footer(std::ostream& ost)
       "} select option {"
       " color: var(--theme_fg2) !important;"
       " background-color: var(--theme_bg3) !important;"
+      "} .add {"
+      " color: var(--theme_green);"
+      "} .del {"
+      " color: var(--theme_red);"
       "}");
   ost << html::body();
   ost << html::html();

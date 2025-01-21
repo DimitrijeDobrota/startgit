@@ -18,7 +18,8 @@ struct line
   }
 
   const std::string& get_content() const { return m_content; }
-  char get_origin() const { return m_origin; }
+  bool is_add() const { return m_origin == '+'; }
+  bool is_del() const { return m_origin == '-'; }
 
 private:
   std::string m_content;
@@ -50,10 +51,14 @@ struct delta
   }
   const auto* operator->() const { return &m_ptr; }
   const auto& get_hunks() const { return m_hunks; }
+  auto get_adds() const { return m_adds; }
+  auto get_dels() const { return m_dels; }
 
 private:
   git_diff_delta m_ptr;
   std::vector<hunk> m_hunks;
+  uint32_t m_adds = 0;
+  uint32_t m_dels = 0;
 };
 
 class diff
