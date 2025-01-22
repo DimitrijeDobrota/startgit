@@ -70,7 +70,7 @@ public:
   std::string get_insertions() const;
   std::string get_deletions() const;
 
-  const auto& get_deltas() const { return m_deltas; }
+  const std::vector<delta>& get_deltas() const;
 
 private:
   static int file_cb(const git_diff_delta* delta,
@@ -89,7 +89,7 @@ private:
   git2wrap::diff m_diff;
   git2wrap::diff_stats m_stats;
 
-  std::vector<delta> m_deltas;
+  mutable std::vector<delta> m_deltas;
 };
 
 }  // namespace startgit

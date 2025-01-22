@@ -12,21 +12,9 @@
 #include <md4c-html.h>
 #include <poafloc/poafloc.hpp>
 
+#include "arguments.hpp"
 #include "repository.hpp"
 #include "utils.hpp"
-
-struct arguments_t
-{
-  std::filesystem::path output_dir = ".";
-  std::vector<std::filesystem::path> repos;
-  std::string resource_url = "https://dimitrijedobrota.com";
-  std::string base_url = "https://git.dimitrijedobrota.com";
-  std::string author = "Dimitrije Dobrota";
-  std::string title = "Collection of git repositories";
-  std::string description = "Publicly available personal projects";
-};
-
-static arguments_t args;  // NOLINT
 
 void write_header(std::ostream& ost,
                   const std::string& title,
@@ -52,9 +40,9 @@ void write_header(std::ostream& ost,
 
   // Stylesheets
   ost << html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-             .set("href", args.resource_url + "/css/index.css");
+             .set("href", startgit::args.resource_url + "/css/index.css");
   ost << html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-             .set("href", args.resource_url + "/css/colors.css");
+             .set("href", startgit::args.resource_url + "/css/colors.css");
 
   if (has_feed) {
     // Rss feed
@@ -72,10 +60,12 @@ void write_header(std::ostream& ost,
   // Icons
   ost << html::link({{"rel", "icon"}, {"type", "image/png"}})
              .set("sizes", "32x32")
-             .set("href", args.resource_url + "/img/favicon-32x32.png");
+             .set("href",
+                  startgit::args.resource_url + "/img/favicon-32x32.png");
   ost << html::link({{"rel", "icon"}, {"type", "image/png"}})
              .set("sizes", "16x16")
-             .set("href", args.resource_url + "/img/favicon-16x16.png");
+             .set("href",
+                  startgit::args.resource_url + "/img/favicon-16x16.png");
   ost << html::head();
   ost << html::body();
   ost << html::input()
@@ -226,8 +216,8 @@ void write_repo_table(std::ostream& ost, const std::stringstream& index)
 {
   using namespace hemplate;  // NOLINT
 
-  ost << html::h1(args.title);
-  ost << html::p(args.description);
+  ost << html::h1(startgit::args.title);
+  ost << html::p(startgit::args.description);
 
   ost << html::table();
   ost << html::thead();
@@ -528,7 +518,8 @@ void write_footer(std::ostream& ost)
   html::div().tgl_state();
   ost << html::div();
 
-  ost << html::script(" ").set("src", args.resource_url + "/scripts/main.js");
+  const auto jss = startgit::args.resource_url + "/scripts/main.js";
+  ost << html::script(" ").set("src", jss);
   ost << html::script(
       "function switchPage(value) {"
       "   let arr = window.location.href.split('/');"
@@ -599,8 +590,11 @@ void write_commits(const std::filesystem::path& base,
                    const startgit::branch& branch)
 {
   for (const auto& commit : branch.get_commits()) {
-    const std::string filename = commit.get_id() + ".html";
-    std::ofstream ofs(base / filename);
+    const std::string file = base / (commit.get_id() + ".html");
+    if (!startgit::args.force && std::filesystem::exists(file)) {
+      continue;
+    }
+    std::ofstream ofs(file);
 
     write_header(ofs, repo, branch, commit.get_summary(), "../");
     write_title(ofs, repo, branch, "../");
@@ -654,15 +648,15 @@ void write_atom(std::ostream& ost,
   using namespace hemplate;  // NOLINT
 
   ost << atom::feed();
-  ost << atom::title(args.title);
-  ost << atom::subtitle(args.description);
+  ost << atom::title(startgit::args.title);
+  ost << atom::subtitle(startgit::args.description);
 
   ost << atom::id(base_url + '/');
   ost << atom::updated(atom::format_time_now());
-  ost << atom::author().add(atom::name(args.author));
+  ost << atom::author().add(atom::name(startgit::args.author));
   ost << atom::link(" ", {{"rel", "self"}, {"href", base_url + "/atom.xml"}});
   ost << atom::link(" ",
-                    {{"href", args.resource_url},
+                    {{"href", startgit::args.resource_url},
                      {"rel", "alternate"},
                      {"type", "text/html"}});
 
@@ -694,8 +688,8 @@ void write_rss(std::ostream& ost,
   ost << rss::rss();
   ost << rss::channel();
 
-  ost << rss::title(args.title);
-  ost << rss::description(args.description);
+  ost << rss::title(startgit::args.title);
+  ost << rss::description(startgit::args.description);
   ost << rss::link(base_url + '/');
   ost << rss::generator("startgit");
   ost << rss::language("en-us");
@@ -721,10 +715,10 @@ void write_rss(std::ostream& ost,
 
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
-  auto* l_args = static_cast<arguments_t*>(parser->input());
+  auto* l_args = static_cast<startgit::arguments_t*>(parser->input());
   switch (key) {
     case 'o':
-      l_args->output_dir = std::filesystem::canonical(arg).string();
+      l_args->output_dir = arg;
       break;
     case 'b':
       l_args->base_url = arg;
@@ -744,8 +738,15 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
     case 'd':
       l_args->description = arg;
       break;
+    case 'f':
+      l_args->force = true;
+      break;
     case poafloc::ARG:
-      l_args->repos.emplace_back(std::filesystem::canonical(arg));
+      try {
+        l_args->repos.emplace_back(std::filesystem::canonical(arg));
+      } catch (const std::filesystem::filesystem_error& arr) {
+        std::cerr << std::format("Warning: {} doesn't exist\n", arg);
+      }
       break;
     default:
       break;
@@ -758,6 +759,7 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 static const poafloc::option_t options[] = {
     {0, 0, 0, 0, "Output mode", 1},
     {"output", 'o', "DIR", 0, "Output directory"},
+    {"force", 'f', 0, 0, "Force write even if file exists"},
     {0, 0, 0, 0, "General information", 2},
     {"base", 'b', "URL", 0, "Absolute destination URL"},
     {"resource", 'r', "URL", 0, "URL that houses styles and scripts"},
@@ -779,7 +781,7 @@ static const poafloc::arg_t arg {
 
 int main(int argc, char* argv[])
 {
-  if (poafloc::parse(&arg, argc, argv, 0, &args) != 0) {
+  if (poafloc::parse(&arg, argc, argv, 0, &startgit::args) != 0) {
     std::cerr << "There was an error while parsing arguments";
     return 1;
   }
@@ -788,11 +790,15 @@ int main(int argc, char* argv[])
     const git2wrap::libgit2 libgit;
     std::stringstream index;
 
-    std::filesystem::create_directories(args.output_dir);
-    for (const auto& repo_path : args.repos) {
+    auto& output_dir = startgit::args.output_dir;
+    std::filesystem::create_directories(output_dir);
+    output_dir = std::filesystem::canonical(output_dir);
+
+    for (const auto& repo_path : startgit::args.repos) {
       try {
         const startgit::repository repo(repo_path);
-        const std::filesystem::path base = args.output_dir / repo.get_name();
+        const std::filesystem::path base =
+            startgit::args.output_dir / repo.get_name();
         std::filesystem::create_directory(base);
 
         for (const auto& branch : repo.get_branches()) {
@@ -814,16 +820,15 @@ int main(int argc, char* argv[])
 
           write_files(file, repo, branch);
 
-          const auto relative =
-              std::filesystem::relative(base_branch, args.output_dir).string();
+          const std::string relative =
+              std::filesystem::relative(base_branch, startgit::args.output_dir);
+          const auto absolute = "https://git.dimitrijedobrota.com/" + relative;
 
           std::ofstream atom(base_branch / "atom.xml");
-          write_atom(
-              atom, branch, "https://git.dimitrijedobrota.com/" + relative);
+          write_atom(atom, branch, absolute);
 
           std::ofstream rss(base_branch / "rss.xml");
-          write_rss(
-              rss, branch, "https://git.dimitrijedobrota.com/" + relative);
+          write_rss(rss, branch, absolute);
         }
 
         write_repo_table_entry(index, repo);
@@ -833,11 +838,11 @@ int main(int argc, char* argv[])
       }
     }
 
-    std::ofstream ofs(args.output_dir / "index.html");
+    std::ofstream ofs(startgit::args.output_dir / "index.html");
     write_header(ofs,
-                 args.title,
-                 args.description,
-                 args.author,
+                 startgit::args.title,
+                 startgit::args.description,
+                 startgit::args.author,
                  "./",
                  /*has_feed=*/false);
     write_repo_table(ofs, index);

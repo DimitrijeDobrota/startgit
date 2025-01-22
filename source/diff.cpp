@@ -18,8 +18,16 @@ diff::diff(const git2wrap::commit& cmmt)
 
   m_diff = git2wrap::diff::tree_to_tree(ptree, cmmt.get_tree(), &opts);
   m_stats = m_diff.get_stats();
+}
 
-  m_diff.foreach(file_cb, nullptr, hunk_cb, line_cb, this);
+const std::vector<delta>& diff::get_deltas() const
+{
+  if (!m_deltas.empty()) {
+    return m_deltas;
+  }
+
+  m_diff.foreach(
+      file_cb, nullptr, hunk_cb, line_cb, const_cast<diff*>(this));  // NOLINT
 
   for (auto& delta : m_deltas) {
     for (const auto& hunk : delta.get_hunks()) {
@@ -29,6 +37,8 @@ diff::diff(const git2wrap::commit& cmmt)
       }
     }
   }
+
+  return m_deltas;
 }
 
 int diff::file_cb(const git_diff_delta* delta,
