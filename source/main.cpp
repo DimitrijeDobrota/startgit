@@ -90,7 +90,7 @@ void write_header(std::ostream& ost,
                   bool has_feed = true)
 {
   write_header(ost,
-               std::format("{}({}) - {}",
+               std::format("{} ({}) - {}",
                            repo.get_name(),
                            branch.get_name(),
                            repo.get_description()),
@@ -358,9 +358,11 @@ void write_file_changes(std::ostream& ost, const startgit::diff& diff)
                    html::a(delta->new_file.path).set("href", link)))
                .add(html::td("|"))
                .add(html::td()
-                        .add(html::span(" " + std::string(add, '+'))
+                        .add(html::span()
+                                 .add(html::text(std::string(add, '+')))
                                  .set("class", "add"))
-                        .add(html::span(" " + std::string(del, '-'))
+                        .add(html::span()
+                                 .add(html::text(std::string(del, '-')))
                                  .set("class", "del")));
   }
 
@@ -585,14 +587,16 @@ void write_refs(const std::filesystem::path& base,
   write_footer(ofs);
 }
 
-void write_commits(const std::filesystem::path& base,
+bool write_commits(const std::filesystem::path& base,
                    const startgit::repository& repo,
                    const startgit::branch& branch)
 {
+  bool changed = false;
+
   for (const auto& commit : branch.get_commits()) {
     const std::string file = base / (commit.get_id() + ".html");
     if (!startgit::args.force && std::filesystem::exists(file)) {
-      continue;
+      break;
     }
     std::ofstream ofs(file);
 
@@ -600,7 +604,10 @@ void write_commits(const std::filesystem::path& base,
     write_title(ofs, repo, branch, "../");
     write_commit_diff(ofs, commit);
     write_footer(ofs);
+    changed = true;
   }
+
+  return changed;
 }
 
 void write_files(const std::filesystem::path& base,
@@ -805,15 +812,18 @@ int main(int argc, char* argv[])
           const std::filesystem::path base_branch = base / branch.get_name();
           std::filesystem::create_directory(base_branch);
 
+          const std::filesystem::path commit = base_branch / "commit";
+          std::filesystem::create_directory(commit);
+
+          const bool changed = write_commits(commit, repo, branch);
+          if (!startgit::args.force && !changed) {
+            continue;
+          };
+
           write_log(base_branch, repo, branch);
           write_file(base_branch, repo, branch);
           write_refs(base_branch, repo, branch);
           write_readme_licence(base_branch, repo, branch);
-
-          const std::filesystem::path commit = base_branch / "commit";
-          std::filesystem::create_directory(commit);
-
-          write_commits(commit, repo, branch);
 
           const std::filesystem::path file = base_branch / "file";
           std::filesystem::create_directory(file);
