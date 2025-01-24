@@ -17,6 +17,7 @@ struct arguments_t
   std::string author = "Dimitrije Dobrota";
   std::string title = "Collection of git repositories";
   std::string description = "Publicly available personal projects";
+  std::string github = "DimitrijeDobrota";
   std::unordered_set<std::filesystem::path> special = {
       "BUILDING.md",
       "CODE_OF_CONDUCT.md",

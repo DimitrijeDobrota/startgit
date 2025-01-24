@@ -153,11 +153,62 @@ void md_html::render_html_escaped(const MD_CHAR* data, MD_SIZE size)
   }
 }
 
+std::string translate_url(const MD_CHAR* data, MD_SIZE size)
+{
+  auto url = std::string(data, size);
+
+  if (url.rfind("http", 0) != std::string::npos
+      || url.rfind("www", 0) != std::string::npos)
+  {
+    const std::string github = "github.com/" + startgit::args.github;
+    const std::size_t gpos = url.find(github);
+    if (gpos != std::string::npos) {
+      url = startgit::args.base_url + url.substr(gpos + github.size());
+
+      static const std::string blob = "/blob";
+      const std::size_t bpos = url.find(blob);
+      if (bpos != std::string::npos) {
+        url.replace(bpos, blob.size(), "");
+
+        const std::size_t rslash = url.rfind('/');
+
+        auto itr = startgit::args.special.find(url.substr(rslash + 1));
+        if (itr != startgit::args.special.end()) {
+          auto cpy = *itr;
+          url = std::format("{}/{}.html",
+                            url.substr(0, rslash),
+                            cpy.replace_extension().string());
+        } else {
+          const std::size_t slash = url.find('/', bpos + 1);
+          url.replace(slash, 1, "/file/");
+          url += ".html";
+        }
+      } else {
+        url += "/master/log.html";
+      }
+    }
+  } else {
+    auto itr = startgit::args.special.find(url);
+    if (itr != startgit::args.special.end()) {
+      auto cpy = *itr;
+      url = std::format("./{}.html", cpy.replace_extension().string());
+    } else {
+      url = std::format("./file/{}.html", url);
+    }
+  }
+
+  return url;
+}
+
 void md_html::render_url_escaped(const MD_CHAR* data, MD_SIZE size)
 {
   static const MD_CHAR* hex_chars = "0123456789ABCDEF";
   MD_OFFSET beg = 0;
   MD_OFFSET off = 0;
+
+  const auto url = translate_url(data, size);
+  size = static_cast<unsigned>(url.size());
+  data = url.data();
 
   while (true) {
     while (off < size && !md_html::need_url_esc(data[off])) {  // NOLINT

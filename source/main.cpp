@@ -745,6 +745,9 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
     case 'd':
       l_args->description = arg;
       break;
+    case 'g':
+      l_args->github = arg;
+      break;
     case 'f':
       l_args->force = true;
       break;
@@ -779,6 +782,7 @@ static const poafloc::option_t options[] = {
     {"output", 'o', "DIR", 0, "Output directory"},
     {"force", 'f', 0, 0, "Force write even if file exists"},
     {"special", 's', "NAME", 0, "Comma separated files to be rendered to html"},
+    {"github", 'g', "USERNAME", 0, "Github username for url translation"},
     {0, 0, 0, 0, "General information", 2},
     {"base", 'b', "URL", 0, "Absolute destination URL"},
     {"resource", 'r', "URL", 0, "URL that houses styles and scripts"},

@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.1.33
+    VERSION 0.1.34
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
