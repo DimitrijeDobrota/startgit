@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace startgit
@@ -16,6 +17,14 @@ struct arguments_t
   std::string author = "Dimitrije Dobrota";
   std::string title = "Collection of git repositories";
   std::string description = "Publicly available personal projects";
+  std::unordered_set<std::filesystem::path> special = {
+      "BUILDING.md",
+      "CODE_OF_CONDUCT.md",
+      "CONTRIBUTING.md",
+      "HACKING.md",
+      "LICENSE.md",
+      "README.md",
+  };
   bool force = false;
 };
 

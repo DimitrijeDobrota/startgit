@@ -748,6 +748,17 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
     case 'f':
       l_args->force = true;
       break;
+    case 's': {
+      std::stringstream sstream(arg);
+      std::string crnt;
+
+      l_args->special.clear();
+      while (std::getline(sstream, crnt, ',')) {
+        l_args->special.emplace(crnt);
+      }
+
+      break;
+    }
     case poafloc::ARG:
       try {
         l_args->repos.emplace_back(std::filesystem::canonical(arg));
@@ -767,6 +778,7 @@ static const poafloc::option_t options[] = {
     {0, 0, 0, 0, "Output mode", 1},
     {"output", 'o', "DIR", 0, "Output directory"},
     {"force", 'f', 0, 0, "Force write even if file exists"},
+    {"special", 's', "NAME", 0, "Comma separated files to be rendered to html"},
     {0, 0, 0, 0, "General information", 2},
     {"base", 'b', "URL", 0, "Absolute destination URL"},
     {"resource", 'r', "URL", 0, "URL that houses styles and scripts"},

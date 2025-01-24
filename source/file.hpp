@@ -12,7 +12,7 @@ namespace startgit
 class file
 {
 public:
-  file(const git2wrap::tree_entry& entry, std::string path);
+  file(const git2wrap::tree_entry& entry, std::filesystem::path path);
 
   std::string get_filemode() const { return m_filemode; }
   std::filesystem::path get_path() const { return m_path; }

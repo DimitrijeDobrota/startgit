@@ -1,11 +1,11 @@
 #include <algorithm>
 #include <functional>
-#include <unordered_set>
 
 #include "branch.hpp"
 
 #include <git2wrap/revwalk.hpp>
 
+#include "arguments.hpp"
 #include "repository.hpp"
 
 namespace startgit
@@ -46,18 +46,16 @@ branch::branch(git2wrap::branch brnch, repository& repo)
           continue;
       }
 
-      static const std::unordered_set<std::filesystem::path> special {
-          "README.md",
-          "LICENSE.md",
-          "BUILDING.md",
-          "HACKING.md",
-      };
-
       m_files.emplace_back(entry, full_path);
-      if (!path.empty() || !special.contains(entry.get_name())) {
+
+      if (!path.empty()) {
         continue;
       }
-      m_special.emplace_back(entry, full_path);
+
+      auto itr = args.special.find(entry.get_name());
+      if (itr != args.special.end()) {
+        m_special.emplace_back(entry, *itr);
+      }
     }
   };
 
