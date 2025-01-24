@@ -9,10 +9,10 @@
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
 #include <hemplate/classes.hpp>
-#include <md4c-html.h>
 #include <poafloc/poafloc.hpp>
 
 #include "arguments.hpp"
+#include "html.hpp"
 #include "repository.hpp"
 #include "utils.hpp"
 
@@ -503,12 +503,12 @@ void write_html(std::ostream& ost, const startgit::file& file)
     ofs << std::string(str, size);
   };
 
-  md_html(file.get_content(),
-          static_cast<MD_SIZE>(file.get_size()),
-          process_output,
-          &ost,
-          MD_DIALECT_GITHUB,
-          0);
+  startgit::md_html(file.get_content(),
+                    static_cast<MD_SIZE>(file.get_size()),
+                    process_output,
+                    &ost,
+                    MD_DIALECT_GITHUB,
+                    0);
 }
 
 void write_footer(std::ostream& ost)

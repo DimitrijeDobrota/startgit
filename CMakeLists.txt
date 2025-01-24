@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.1.31
+    VERSION 0.1.32
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
@@ -26,11 +26,12 @@ add_library(
     startgit_lib OBJECT
     source/arguments.cpp
     source/branch.cpp
-    source/diff.cpp
-    source/tag.cpp
     source/commit.cpp
+    source/diff.cpp
     source/file.cpp
+    source/html.cpp
     source/repository.cpp
+    source/tag.cpp
     source/utils.cpp
 )
 

@@ -5,6 +5,7 @@
 Checks: "*,\
   -google-readability-todo,\
   -altera-*,\
+  -abseil-string-find-str-contains,\
   -bugprone-easily-swappable-parameters,\
   -fuchsia-*,\
   fuchsia-multiple-inheritance,\
