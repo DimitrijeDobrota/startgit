@@ -797,7 +797,7 @@ static const poafloc::option_t options[] = {
 static const poafloc::arg_t arg {
     options,
     parse_opt,
-    "config_file",
+    "repositories...",
     "",
 };
 // NOLINTEND
