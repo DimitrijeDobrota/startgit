@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.2.0
+    VERSION 0.2.1
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
@@ -18,13 +18,14 @@ include(cmake/variables.cmake)
 find_package(git2wrap CONFIG REQUIRED)
 find_package(hemplate 0.2.2 CONFIG REQUIRED)
 find_package(md4c CONFIG REQUIRED)
-find_package(poafloc 1 CONFIG REQUIRED)
+find_package(poafloc 1.2 CONFIG REQUIRED)
 
 # ---- Declare library ----
 
 add_library(
     startgit_lib OBJECT
     source/arguments.cpp
+    source/common.cpp
     source/branch.cpp
     source/commit.cpp
     source/diff.cpp
@@ -47,7 +48,7 @@ target_compile_features(startgit_lib PUBLIC cxx_std_20)
 
 # ---- Declare executable ----
 
-add_executable(startgit_exe source/main.cpp)
+add_executable(startgit_exe source/startgit.cpp)
 add_executable(startgit::exe ALIAS startgit_exe)
 
 set_property(TARGET startgit_exe PROPERTY OUTPUT_NAME startgit)
@@ -55,6 +56,16 @@ set_property(TARGET startgit_exe PROPERTY OUTPUT_NAME startgit)
 target_compile_features(startgit_exe PRIVATE cxx_std_20)
 
 target_link_libraries(startgit_exe PRIVATE git2wrap startgit_lib)
+
+
+add_executable(startgit-index_exe source/startgit-index.cpp)
+add_executable(startgit-index::exe ALIAS startgit-index_exe)
+
+set_property(TARGET startgit-index_exe PROPERTY OUTPUT_NAME startgit-index)
+
+target_compile_features(startgit-index_exe PRIVATE cxx_std_20)
+
+target_link_libraries(startgit-index_exe PRIVATE git2wrap startgit_lib)
 
 # ---- Install rules ----
 
