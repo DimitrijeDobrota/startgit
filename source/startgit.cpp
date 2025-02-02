@@ -12,97 +12,17 @@
 #include <poafloc/poafloc.hpp>
 
 #include "arguments.hpp"
+#include "common.hpp"
 #include "html.hpp"
 #include "repository.hpp"
 #include "utils.hpp"
 
-void write_header(std::ostream& ost,
-                  const std::string& title,
-                  const std::string& description,
-                  const std::string& author,
-                  const std::string& relpath = "./",
-                  bool has_feed = true)
+namespace startgit
 {
-  using namespace hemplate;  // NOLINT
-
-  ost << html::doctype();
-  ost << html::html().set("lang", "en");
-  ost << html::head();
-  ost << html::title(title);
-
-  // Meta tags
-  ost << html::meta({{"charset", "UTF-8"}});
-  ost << html::meta({{"name", "author"}, {"content", author}});
-  ost << html::meta({{"name", "description"}, {"content", description}});
-
-  ost << html::meta({{"content", "width=device-width, initial-scale=1"},
-                     {"name", "viewport"}});
-
-  // Stylesheets
-  ost << html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-             .set("href", startgit::args.resource_url + "/css/index.css");
-  ost << html::link({{"rel", "stylesheet"}, {"type", "text/css"}})
-             .set("href", startgit::args.resource_url + "/css/colors.css");
-
-  if (has_feed) {
-    // Rss feed
-    ost << html::link({{"rel", "alternate"},
-                       {"type", "application/atom+xml"},
-                       {"title", "RSS feed"},
-                       {"href", relpath + "rss.xml"}});
-    // Atom feed
-    ost << html::link({{"rel", "alternate"},
-                       {"type", "application/atom+xml"},
-                       {"title", "Atom feed"},
-                       {"href", relpath + "atom.xml"}});
-  }
-
-  // Icons
-  ost << html::link({{"rel", "icon"}, {"type", "image/png"}})
-             .set("sizes", "32x32")
-             .set("href",
-                  startgit::args.resource_url + "/img/favicon-32x32.png");
-  ost << html::link({{"rel", "icon"}, {"type", "image/png"}})
-             .set("sizes", "16x16")
-             .set("href",
-                  startgit::args.resource_url + "/img/favicon-16x16.png");
-  ost << html::head();
-  ost << html::body();
-  ost << html::input()
-             .set("type", "checkbox")
-             .set("id", "theme_switch")
-             .set("class", "theme_switch");
-
-  ost << html::div().set("id", "content");
-  html::div().tgl_state();
-
-  ost << html::main();
-  ost << html::label(" ")
-             .set("for", "theme_switch")
-             .set("class", "switch_label");
-}
-
-void write_header(std::ostream& ost,
-                  const startgit::repository& repo,
-                  const startgit::branch& branch,
-                  const std::string& description,
-                  const std::string& relpath = "./",
-                  bool has_feed = true)
-{
-  write_header(ost,
-               std::format("{} ({}) - {}",
-                           repo.get_name(),
-                           branch.get_name(),
-                           repo.get_description()),
-               description,
-               repo.get_owner(),
-               relpath,
-               has_feed);
-}
 
 void write_title(std::ostream& ost,
-                 const startgit::repository& repo,
-                 const startgit::branch& branch,
+                 const repository& repo,
+                 const branch& branch,
                  const std::string& relpath = "./")
 {
   using namespace hemplate;  // NOLINT
@@ -156,7 +76,7 @@ void write_title(std::ostream& ost,
   ost << html::hr();
 }
 
-void write_commit_table(std::ostream& ost, const startgit::branch& branch)
+void write_commit_table(std::ostream& ost, const branch& branch)
 {
   using namespace hemplate;  // NOLINT
 
@@ -189,53 +109,7 @@ void write_commit_table(std::ostream& ost, const startgit::branch& branch)
   ost << html::table();
 }
 
-void write_repo_table_entry(std::ostream& ost, const startgit::repository& repo)
-{
-  using namespace hemplate;  // NOLINT
-
-  for (const auto& branch : repo.get_branches()) {
-    if (branch.get_name() != "master") {
-      continue;
-    }
-
-    const auto url = repo.get_name() + "/master/log.html";
-
-    ost << html::tr()
-               .add(html::td().add(html::a(repo.get_name()).set("href", url)))
-               .add(html::td(repo.get_description()))
-               .add(html::td(repo.get_owner()))
-               .add(html::td(branch.get_commits()[0].get_time()));
-    return;
-  }
-
-  std::cerr << std::format("Warning: {} doesn't have master branch\n",
-                           repo.get_path().string());
-}
-
-void write_repo_table(std::ostream& ost, const std::stringstream& index)
-{
-  using namespace hemplate;  // NOLINT
-
-  ost << html::h1(startgit::args.title);
-  ost << html::p(startgit::args.description);
-
-  ost << html::table();
-  ost << html::thead();
-  ost << html::tr()
-             .add(html::td("Name"))
-             .add(html::td("Description"))
-             .add(html::td("Owner"))
-             .add(html::td("Last commit"));
-  ost << html::thead();
-  ost << html::tbody();
-
-  ost << index.str();
-
-  ost << html::tbody();
-  ost << html::table();
-}
-
-void write_files_table(std::ostream& ost, const startgit::branch& branch)
+void write_files_table(std::ostream& ost, const branch& branch)
 {
   using namespace hemplate;  // NOLINT
 
@@ -264,7 +138,7 @@ void write_files_table(std::ostream& ost, const startgit::branch& branch)
 }
 
 void write_branch_table(std::ostream& ost,
-                        const startgit::repository& repo,
+                        const repository& repo,
                         const std::string& branch_name)
 {
   using namespace hemplate;  // NOLINT
@@ -297,7 +171,7 @@ void write_branch_table(std::ostream& ost,
   ost << html::table();
 }
 
-void write_tag_table(std::ostream& ost, const startgit::repository& repo)
+void write_tag_table(std::ostream& ost, const repository& repo)
 {
   using namespace hemplate;  // NOLINT
 
@@ -324,7 +198,7 @@ void write_tag_table(std::ostream& ost, const startgit::repository& repo)
   ost << html::table();
 }
 
-void write_file_changes(std::ostream& ost, const startgit::diff& diff)
+void write_file_changes(std::ostream& ost, const diff& diff)
 {
   using namespace hemplate;  // NOLINT
 
@@ -374,7 +248,7 @@ void write_file_changes(std::ostream& ost, const startgit::diff& diff)
                   diff.get_deletions()));
 }
 
-void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
+void write_file_diffs(std::ostream& ost, const diff& diff)
 {
   using namespace hemplate;  // NOLINT
 
@@ -398,7 +272,7 @@ void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
                          hunk->new_start,
                          hunk->new_lines);
 
-      startgit::xmlencode(ost, header.substr(header.rfind('@') + 2));
+      xmlencode(ost, header.substr(header.rfind('@') + 2));
       ost << html::h4();
 
       ost << html::span().set("style", "white-space: pre");
@@ -411,7 +285,7 @@ void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
         }
 
         ost << div;
-        startgit::xmlencode(ost, line.get_content());
+        xmlencode(ost, line.get_content());
         ost << div;
       }
       ost << html::span();
@@ -419,7 +293,7 @@ void write_file_diffs(std::ostream& ost, const startgit::diff& diff)
   }
 }
 
-void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
+void write_commit_diff(std::ostream& ost, const commit& commit)
 {
   using namespace hemplate;  // NOLINT
 
@@ -452,7 +326,7 @@ void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
   ost << html::tbody() << html::table();
 
   ost << html::br() << html::p().set("style", "white-space: pre;");
-  startgit::xmlencode(ost, commit.get_message());
+  xmlencode(ost, commit.get_message());
   ost << html::p();
 
   write_file_changes(ost, commit.get_diff());
@@ -460,7 +334,7 @@ void write_commit_diff(std::ostream& ost, const startgit::commit& commit)
   write_file_diffs(ost, commit.get_diff());
 }
 
-void write_file_title(std::ostream& ost, const startgit::file& file)
+void write_file_title(std::ostream& ost, const file& file)
 {
   using namespace hemplate;  // NOLINT
 
@@ -469,7 +343,7 @@ void write_file_title(std::ostream& ost, const startgit::file& file)
   ost << html::hr();
 }
 
-void write_file_content(std::ostream& ost, const startgit::file& file)
+void write_file_content(std::ostream& ost, const file& file)
 {
   using namespace hemplate;  // NOLINT
 
@@ -488,13 +362,13 @@ void write_file_content(std::ostream& ost, const startgit::file& file)
     ost << std::format(
         R"(<a id="{}" href="#{}">{:5}</a>)", count, count, count);
     ost << "  ";
-    startgit::xmlencode(ost, line);
+    xmlencode(ost, line);
     ost << '\n';
   }
   ost << html::span();
 }
 
-void write_html(std::ostream& ost, const startgit::file& file)
+void write_html(std::ostream& ost, const file& file)
 {
   static const auto process_output =
       +[](const MD_CHAR* str, MD_SIZE size, void* data)
@@ -503,56 +377,17 @@ void write_html(std::ostream& ost, const startgit::file& file)
     ofs << std::string(str, size);
   };
 
-  startgit::md_html(file.get_content(),
-                    static_cast<MD_SIZE>(file.get_size()),
-                    process_output,
-                    &ost,
-                    MD_DIALECT_GITHUB,
-                    0);
-}
-
-void write_footer(std::ostream& ost)
-{
-  using namespace hemplate;  // NOLINT
-
-  ost << html::main();
-
-  html::div().tgl_state();
-  ost << html::div();
-
-  const auto jss = startgit::args.resource_url + "/scripts/main.js";
-  ost << html::script(" ").set("src", jss);
-  ost << html::script(
-      "function switchPage(value) {"
-      "   let arr = window.location.href.split('/');"
-      "   arr[4] = value;"
-      "   history.replaceState(history.state, '', arr.join('/'));"
-      "   location.reload();"
-      "}");
-  ost << html::style(
-      "  table { "
-      " margin-left: 0;"
-      " background-color: inherit;"
-      " border: none"
-      "} select { "
-      " color: var(--theme_fg1);"
-      " background-color: inherit;"
-      " border: 1px solid var(--theme_bg4);"
-      "} select option {"
-      " color: var(--theme_fg2) !important;"
-      " background-color: var(--theme_bg3) !important;"
-      "} .add {"
-      " color: var(--theme_green);"
-      "} .del {"
-      " color: var(--theme_red);"
-      "}");
-  ost << html::body();
-  ost << html::html();
+  md_html(file.get_content(),
+          static_cast<MD_SIZE>(file.get_size()),
+          process_output,
+          &ost,
+          MD_DIALECT_GITHUB,
+          0);
 }
 
 void write_log(const std::filesystem::path& base,
-               const startgit::repository& repo,
-               const startgit::branch& branch)
+               const repository& repo,
+               const branch& branch)
 {
   std::ofstream ofs(base / "log.html");
 
@@ -563,8 +398,8 @@ void write_log(const std::filesystem::path& base,
 }
 
 void write_file(const std::filesystem::path& base,
-                const startgit::repository& repo,
-                const startgit::branch& branch)
+                const repository& repo,
+                const branch& branch)
 {
   std::ofstream ofs(base / "files.html");
 
@@ -575,8 +410,8 @@ void write_file(const std::filesystem::path& base,
 }
 
 void write_refs(const std::filesystem::path& base,
-                const startgit::repository& repo,
-                const startgit::branch& branch)
+                const repository& repo,
+                const branch& branch)
 {
   std::ofstream ofs(base / "refs.html");
 
@@ -588,14 +423,14 @@ void write_refs(const std::filesystem::path& base,
 }
 
 bool write_commits(const std::filesystem::path& base,
-                   const startgit::repository& repo,
-                   const startgit::branch& branch)
+                   const repository& repo,
+                   const branch& branch)
 {
   bool changed = false;
 
   for (const auto& commit : branch.get_commits()) {
     const std::string file = base / (commit.get_id() + ".html");
-    if (!startgit::args.force && std::filesystem::exists(file)) {
+    if (!args.force && std::filesystem::exists(file)) {
       break;
     }
     std::ofstream ofs(file);
@@ -611,8 +446,8 @@ bool write_commits(const std::filesystem::path& base,
 }
 
 void write_files(const std::filesystem::path& base,
-                 const startgit::repository& repo,
-                 const startgit::branch& branch)
+                 const repository& repo,
+                 const branch& branch)
 {
   for (const auto& file : branch.get_files()) {
     const std::filesystem::path path =
@@ -636,8 +471,8 @@ void write_files(const std::filesystem::path& base,
 }
 
 void write_readme_licence(const std::filesystem::path& base,
-                          const startgit::repository& repo,
-                          const startgit::branch& branch)
+                          const repository& repo,
+                          const branch& branch)
 {
   for (const auto& file : branch.get_special()) {
     std::ofstream ofs(base / file.get_path().replace_extension("html"));
@@ -649,21 +484,21 @@ void write_readme_licence(const std::filesystem::path& base,
 }
 
 void write_atom(std::ostream& ost,
-                const startgit::branch& branch,
+                const branch& branch,
                 const std::string& base_url)
 {
   using namespace hemplate;  // NOLINT
 
   ost << atom::feed();
-  ost << atom::title(startgit::args.title);
-  ost << atom::subtitle(startgit::args.description);
+  ost << atom::title(args.title);
+  ost << atom::subtitle(args.description);
 
   ost << atom::id(base_url + '/');
   ost << atom::updated(atom::format_time_now());
-  ost << atom::author().add(atom::name(startgit::args.author));
+  ost << atom::author().add(atom::name(args.author));
   ost << atom::link(" ", {{"rel", "self"}, {"href", base_url + "/atom.xml"}});
   ost << atom::link(" ",
-                    {{"href", startgit::args.resource_url},
+                    {{"href", args.resource_url},
                      {"rel", "alternate"},
                      {"type", "text/html"}});
 
@@ -686,7 +521,7 @@ void write_atom(std::ostream& ost,
 }
 
 void write_rss(std::ostream& ost,
-               const startgit::branch& branch,
+               const branch& branch,
                const std::string& base_url)
 {
   using namespace hemplate;  // NOLINT
@@ -695,8 +530,8 @@ void write_rss(std::ostream& ost,
   ost << rss::rss();
   ost << rss::channel();
 
-  ost << rss::title(startgit::args.title);
-  ost << rss::description(startgit::args.description);
+  ost << rss::title(args.title);
+  ost << rss::description(args.description);
   ost << rss::link(base_url + '/');
   ost << rss::generator("startgit");
   ost << rss::language("en-us");
@@ -719,6 +554,11 @@ void write_rss(std::ostream& ost,
   ost << rss::channel();
   ost << rss::rss();
 }
+
+}  // namespace startgit
+
+namespace
+{
 
 int parse_opt(int key, const char* arg, poafloc::Parser* parser)
 {
@@ -763,10 +603,22 @@ int parse_opt(int key, const char* arg, poafloc::Parser* parser)
       break;
     }
     case poafloc::ARG:
+      if (!l_args->repos.empty()) {
+        std::cerr << std::format("Error: only one repository required\n");
+        return -1;
+      }
+
       try {
         l_args->repos.emplace_back(std::filesystem::canonical(arg));
       } catch (const std::filesystem::filesystem_error& arr) {
-        std::cerr << std::format("Warning: {} doesn't exist\n", arg);
+        std::cerr << std::format("Error: {} doesn't exist\n", arg);
+        return -1;
+      }
+      break;
+    case poafloc::END:
+      if (l_args->repos.empty()) {
+        std::cerr << std::format("Error: no repository provided\n");
+        return -1;
       }
       break;
     default:
@@ -797,82 +649,68 @@ static const poafloc::option_t options[] = {
 static const poafloc::arg_t arg {
     options,
     parse_opt,
-    "repositories...",
+    "repository",
     "",
 };
 // NOLINTEND
 
+}  // namespace
+
 int main(int argc, char* argv[])
 {
-  if (poafloc::parse(&arg, argc, argv, 0, &startgit::args) != 0) {
-    std::cerr << "There was an error while parsing arguments";
+  using namespace startgit;  // NOLINT
+
+  if (poafloc::parse(&arg, argc, argv, 0, &args) != 0) {
+    std::cerr << "There was an error while parsing arguments\n";
     return 1;
   }
 
   try {
     const git2wrap::libgit2 libgit;
-    std::stringstream index;
 
-    auto& output_dir = startgit::args.output_dir;
+    auto& output_dir = args.output_dir;
     std::filesystem::create_directories(output_dir);
     output_dir = std::filesystem::canonical(output_dir);
 
-    for (const auto& repo_path : startgit::args.repos) {
-      try {
-        const startgit::repository repo(repo_path);
-        const std::filesystem::path base =
-            startgit::args.output_dir / repo.get_name();
-        std::filesystem::create_directory(base);
+    const repository repo(args.repos[0]);
+    const std::filesystem::path base = args.output_dir / repo.get_name();
+    std::filesystem::create_directory(base);
 
-        for (const auto& branch : repo.get_branches()) {
-          const std::filesystem::path base_branch = base / branch.get_name();
-          std::filesystem::create_directory(base_branch);
+    for (const auto& branch : repo.get_branches()) {
+      const std::filesystem::path base_branch = base / branch.get_name();
+      std::filesystem::create_directory(base_branch);
 
-          const std::filesystem::path commit = base_branch / "commit";
-          std::filesystem::create_directory(commit);
+      const std::filesystem::path commit = base_branch / "commit";
+      std::filesystem::create_directory(commit);
 
-          const bool changed = write_commits(commit, repo, branch);
-          if (!startgit::args.force && !changed) {
-            continue;
-          };
+      const bool changed = write_commits(commit, repo, branch);
+      if (!args.force && !changed) {
+        continue;
+      };
 
-          write_log(base_branch, repo, branch);
-          write_file(base_branch, repo, branch);
-          write_refs(base_branch, repo, branch);
-          write_readme_licence(base_branch, repo, branch);
+      write_log(base_branch, repo, branch);
+      write_file(base_branch, repo, branch);
+      write_refs(base_branch, repo, branch);
+      write_readme_licence(base_branch, repo, branch);
 
-          const std::filesystem::path file = base_branch / "file";
-          std::filesystem::create_directory(file);
+      const std::filesystem::path file = base_branch / "file";
+      std::filesystem::create_directory(file);
 
-          write_files(file, repo, branch);
+      write_files(file, repo, branch);
 
-          const std::string relative =
-              std::filesystem::relative(base_branch, startgit::args.output_dir);
-          const auto absolute = "https://git.dimitrijedobrota.com/" + relative;
+      const std::string relative =
+          std::filesystem::relative(base_branch, args.output_dir);
+      const auto absolute = "https://git.dimitrijedobrota.com/" + relative;
 
-          std::ofstream atom(base_branch / "atom.xml");
-          write_atom(atom, branch, absolute);
+      std::ofstream atom(base_branch / "atom.xml");
+      write_atom(atom, branch, absolute);
 
-          std::ofstream rss(base_branch / "rss.xml");
-          write_rss(rss, branch, absolute);
-        }
-
-        write_repo_table_entry(index, repo);
-      } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
-        std::cerr << std::format("Warning: {} is not a repository\n",
-                                 repo_path.string());
-      }
+      std::ofstream rss(base_branch / "rss.xml");
+      write_rss(rss, branch, absolute);
     }
-
-    std::ofstream ofs(startgit::args.output_dir / "index.html");
-    write_header(ofs,
-                 startgit::args.title,
-                 startgit::args.description,
-                 startgit::args.author,
-                 "./",
-                 /*has_feed=*/false);
-    write_repo_table(ofs, index);
-    write_footer(ofs);
+  } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
+    std::cerr << std::format("Warning: {} is not a repository\n",
+                             args.repos[0].string());
   } catch (const git2wrap::runtime_error& err) {
     std::cerr << std::format("Error (git2wrap): {}\n", err.what());
   } catch (const std::runtime_error& err) {

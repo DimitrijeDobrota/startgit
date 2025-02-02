@@ -17,6 +17,7 @@ Checks: "*,\
   -cppcoreguidelines-pro-type-vararg,\
   -hicpp-vararg,\
   -misc-include-cleaner,\
+  -misc-use-internal-linkage,\
   -misc-non-private-member-variables-in-classes"
 WarningsAsErrors: ''
 CheckOptions:
