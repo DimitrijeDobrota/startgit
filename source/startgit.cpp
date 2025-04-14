@@ -27,26 +27,6 @@ void write_title(std::ostream& ost,
 {
   using namespace hemplate;  // NOLINT
 
-  const auto dropdown = [&]()
-  {
-    auto span = html::span();
-    span.add(html::label("Branch: ").set("for", "branch"));
-    span.add(html::select(
-        {{"id", "branch"}, {"onChange", "switchPage(this.value)"}}));
-
-    for (const auto& c_branch : repo.get_branches()) {
-      auto option = html::option(c_branch.get_name());
-      option.set("value", c_branch.get_name());
-      if (c_branch.get_name() == branch.get_name()) {
-        option.set("selected", "true");
-      }
-      span.add(option);
-    }
-
-    span.add(html::select());
-    return span;
-  }();
-
   ost << html::table();
   ost << html::tr().add(html::td()
                             .add(html::h1(repo.get_name()))
@@ -69,7 +49,6 @@ void write_title(std::ostream& ost,
     ost << html::text(" | ") << html::a(name).set("href", relpath + filename);
   }
 
-  ost << html::text(" | ") << dropdown;
   ost << html::td() << html::tr();
 
   ost << html::table();
@@ -683,6 +662,9 @@ int main(int argc, char* argv[])
       const std::filesystem::path commit = base_branch / "commit";
       std::filesystem::create_directory(commit);
 
+      // always update refs in case of a new branch or tag
+      write_refs(base_branch, repo, branch);
+
       const bool changed = write_commits(commit, repo, branch);
       if (!args.force && !changed) {
         continue;
@@ -690,7 +672,6 @@ int main(int argc, char* argv[])
 
       write_log(base_branch, repo, branch);
       write_file(base_branch, repo, branch);
-      write_refs(base_branch, repo, branch);
       write_readme_licence(base_branch, repo, branch);
 
       const std::filesystem::path file = base_branch / "file";
