@@ -4,7 +4,7 @@ include(cmake/prelude.cmake)
 
 project(
     startgit
-    VERSION 0.2.1
+    VERSION 0.3.0
     DESCRIPTION "Static page generator for git repositories"
     HOMEPAGE_URL "https://git.dimitrijedobrota.com/stargit.git"
     LANGUAGES CXX
@@ -16,7 +16,7 @@ include(cmake/variables.cmake)
 # ---- Declare dependencies ----
 
 find_package(git2wrap CONFIG REQUIRED)
-find_package(hemplate 0.2.2 CONFIG REQUIRED)
+find_package(hemplate 0.4 CONFIG REQUIRED)
 find_package(md4c CONFIG REQUIRED)
 find_package(poafloc 1.2 CONFIG REQUIRED)
 

@@ -1,7 +1,5 @@
 #include <chrono>
 #include <format>
-#include <iomanip>
-#include <sstream>
 
 #include "utils.hpp"
 
@@ -45,6 +43,25 @@ void xmlencode(std::ostream& ost, const std::string& str)
         default:   ost << c;
         }
     }
+}
+
+std::string xmlencode(const std::string& str)
+{
+    std::string res;
+
+    res.reserve(str.size());
+    for (const char c: str) {
+        switch(c) {
+        case '<':  res += "&lt;"; break;
+        case '>':  res += "&gt;"; break;
+        case '\'': res += "&#39;"; break;
+        case '&':  res += "&amp;"; break;
+        case '"':  res += "&quot;"; break;
+        default:   res += c;
+        }
+    }
+
+    return res;
 }
 
 std::string filemode(git2wrap::filemode_t filemode)
