@@ -12,7 +12,7 @@ The big source of inspiration for this project is [`Stagit`](https://codemadness
 most, if not all, of the functionality, with a few twists to fit my needs
 better and fit with the reset of the aesthetic.
 
-It's configured to make pages for my [`peronal projects`](https://git.dimitrijedobrota.com/),
+It's configured to make pages for my [`personal projects`](https://git.dimitrijedobrota.com/),
 but as generation code is self documenting , it can be easily adopted to fit
 your needs.
 
