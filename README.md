@@ -43,6 +43,10 @@ See the [`BUILDING`](BUILDING.md) document.
 
 ## Version History
 
+- 0.2.1
+    * Remove branch dropdown
+    * Handle only one repository
+    * Separate indexer
 - 0.2
     * Files, commits and diffs for each branch
     * RSS and Atom feeds per branch
