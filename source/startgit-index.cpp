@@ -4,7 +4,7 @@
 
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
-#include <hemplate/classes.hpp>
+#include <hemplate/html.hpp>
 #include <poafloc/poafloc.hpp>
 
 #include "arguments.hpp"
@@ -93,7 +93,7 @@ static const poafloc::arg_t arg {
 
 int main(int argc, char* argv[])
 {
-  using namespace hemplate;  // NOLINT
+  using namespace hemplate::html;  // NOLINT
   using namespace startgit;  // NOLINT
 
   if (poafloc::parse(&arg, argc, argv, 0, &args) != 0) {
@@ -116,50 +116,54 @@ int main(int argc, char* argv[])
                  "./",
                  /*has_feed=*/false);
 
-    ofs << html::h1(args.title);
-    ofs << html::p(args.description);
+    ofs << h1(args.title);
+    ofs << p(args.description);
 
-    ofs << html::table();
-    ofs << html::thead();
-    ofs << html::tr()
-               .add(html::td("Name"))
-               .add(html::td("Description"))
-               .add(html::td("Owner"))
-               .add(html::td("Last commit"));
-    ofs << html::thead();
-    ofs << html::tbody();
+    ofs << table {
+        thead {
+            tr {
+                td {"Name"},
+                td {"Description"},
+                td {"Owner"},
+                td {"Last commit"},
+            },
+        },
+        tbody {
+            transform(args.repos,
+                      [](const auto& repo_path) -> element
+                      {
+                        using git2wrap::error_code_t::ENOTFOUND;
+                        try {
+                          const repository repo(repo_path);
 
-    for (const auto& repo_path : args.repos) {
-      try {
-        const repository repo(repo_path);
+                          for (const auto& branch : repo.get_branches()) {
+                            if (branch.get_name() != "master") {
+                              continue;
+                            }
 
-        for (const auto& branch : repo.get_branches()) {
-          if (branch.get_name() != "master") {
-            continue;
-          }
+                            const auto url =
+                                repo.get_name() + "/master/log.html";
+                            return tr {
+                                td {a {{{"href", url}}, repo.get_name()}},
+                                td {repo.get_description()},
+                                td {repo.get_owner()},
+                                td {branch.get_commits()[0].get_time()},
+                            };
+                          }
 
-          const auto url = repo.get_name() + "/master/log.html";
+                          std::cerr << std::format(
+                              "Warning: {} doesn't have master branch\n",
+                              repo.get_path().string());
+                        } catch (const git2wrap::error<ENOTFOUND>& err) {
+                          std::cerr << std::format(
+                              "Warning: {} is not a repository\n",
+                              repo_path.string());
+                        }
 
-          ofs << html::tr()
-                     .add(html::td().add(
-                         html::a(repo.get_name()).set("href", url)))
-                     .add(html::td(repo.get_description()))
-                     .add(html::td(repo.get_owner()))
-                     .add(html::td(branch.get_commits()[0].get_time()));
-          goto next;
-        }
-
-        std::cerr << std::format("Warning: {} doesn't have master branch\n",
-                                 repo.get_path().string());
-      next:;
-      } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
-        std::cerr << std::format("Warning: {} is not a repository\n",
-                                 repo_path.string());
-      }
-    }
-
-    ofs << html::tbody();
-    ofs << html::table();
+                        return text();
+                      }),
+        },
+    };
 
     write_footer(ofs);
   } catch (const git2wrap::runtime_error& err) {

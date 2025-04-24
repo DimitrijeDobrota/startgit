@@ -10,7 +10,7 @@ namespace startgit
 {
 
 void write_header(std::ostream& ost,
-                  const std::string& title,
+                  const std::string& title_txt,
                   const std::string& description,
                   const std::string& author,
                   const std::string& relpath = "./",

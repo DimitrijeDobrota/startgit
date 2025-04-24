@@ -8,7 +8,9 @@
 
 #include <git2wrap/error.hpp>
 #include <git2wrap/libgit2.hpp>
-#include <hemplate/classes.hpp>
+#include <hemplate/atom.hpp>
+#include <hemplate/html.hpp>
+#include <hemplate/rss.hpp>
 #include <poafloc/poafloc.hpp>
 
 #include "arguments.hpp"
@@ -24,7 +26,7 @@ template<std::ranges::forward_range R>
 void wtable(std::ostream& ost,
             std::initializer_list<std::string_view> head,
             const R& range,
-            hemplate::procedure<std::ranges::range_value_t<R>> auto proc)
+            based::Procedure<std::ranges::range_value_t<R>> auto proc)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -513,11 +515,16 @@ void write_atom(std::ostream& ost,
   using namespace hemplate::atom;  // NOLINT
   using hemplate::atom::link;
 
-  const hemplate::attributeList self = {{"rel", "self"},
-                                        {"href", base_url + "/atom.xml"}};
+  const hemplate::attribute_list self = {
+      {"href", base_url + "/atom.xml"},
+      {"rel", "self"},
+  };
 
-  const hemplate::attributeList alter = {
-      {"href", args.resource_url}, {"rel", "alternate"}, {"type", "text/html"}};
+  const hemplate::attribute_list alter = {
+      {"href", args.resource_url},
+      {"rel", "alternate"},
+      {"type", "text/html"},
+  };
 
   ost << feed {
       title {args.title},
