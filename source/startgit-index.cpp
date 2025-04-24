@@ -8,7 +8,7 @@
 #include <poafloc/poafloc.hpp>
 
 #include "arguments.hpp"
-#include "common.hpp"
+#include "document.hpp"
 #include "repository.hpp"
 
 namespace
@@ -91,6 +91,67 @@ static const poafloc::arg_t arg {
 
 }  // namespace
 
+namespace startgit
+{
+
+hemplate::element write_table_row(const std::filesystem::path& repo_path)
+{
+  using namespace hemplate::html;  // NOLINT
+
+  try {
+    const repository repo(repo_path);
+
+    for (const auto& branch : repo.get_branches()) {
+      if (branch.get_name() != "master") {
+        continue;
+      }
+
+      const auto url = repo.get_name() + "/master/log.html";
+      return tr {
+          td {a {{{"href", url}}, repo.get_name()}},
+          td {repo.get_description()},
+          td {repo.get_owner()},
+          td {branch.get_commits()[0].get_time()},
+      };
+    }
+
+    std::cerr << std::format(
+        "Warning: {} doesn't have master branch\n", repo.get_path().string()
+    );
+  } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
+    std::cerr << std::format(
+        "Warning: {} is not a repository\n", repo_path.string()
+    );
+  }
+
+  return text();
+}
+
+hemplate::element write_table()
+{
+  using namespace hemplate::html;  // NOLINT
+
+  return transparent {
+      h1 {args.title},
+      p {args.description},
+      table {
+          thead {
+              tr {
+                  td {"Name"},
+                  td {"Description"},
+                  td {"Owner"},
+                  td {"Last commit"},
+              },
+          },
+          tbody {
+              transform(args.repos, write_table_row),
+          },
+      }
+  };
+}
+
+}  // namespace startgit
+
 int main(int argc, char* argv[])
 {
   using namespace hemplate::html;  // NOLINT
@@ -109,67 +170,11 @@ int main(int argc, char* argv[])
     output_dir = std::filesystem::canonical(output_dir);
 
     std::ofstream ofs(args.output_dir / "index.html");
-    write_header(
-        ofs,
-        args.title,
-        args.description,
-        args.author,
-        "./",
-        /*has_feed=*/false
-    );
-
-    ofs << h1(args.title);
-    ofs << p(args.description);
-
-    ofs << table {
-        thead {
-            tr {
-                td {"Name"},
-                td {"Description"},
-                td {"Owner"},
-                td {"Last commit"},
-            },
-        },
-        tbody {
-            transform(
-                args.repos,
-                [](const auto& repo_path) -> element
-                {
-                  using git2wrap::error_code_t::ENOTFOUND;
-                  try {
-                    const repository repo(repo_path);
-
-                    for (const auto& branch : repo.get_branches()) {
-                      if (branch.get_name() != "master") {
-                        continue;
-                      }
-
-                      const auto url = repo.get_name() + "/master/log.html";
-                      return tr {
-                          td {a {{{"href", url}}, repo.get_name()}},
-                          td {repo.get_description()},
-                          td {repo.get_owner()},
-                          td {branch.get_commits()[0].get_time()},
-                      };
-                    }
-
-                    std::cerr << std::format(
-                        "Warning: {} doesn't have master branch\n",
-                        repo.get_path().string()
-                    );
-                  } catch (const git2wrap::error<ENOTFOUND>& err) {
-                    std::cerr << std::format(
-                        "Warning: {} is not a repository\n", repo_path.string()
-                    );
-                  }
-
-                  return text();
-                }
-            ),
-        },
+    const document doc {
+        args.title, args.description, args.author, "./", /* has_feed = */ false
     };
+    doc.render(ofs, write_table);
 
-    write_footer(ofs);
   } catch (const git2wrap::runtime_error& err) {
     std::cerr << std::format("Error (git2wrap): {}\n", err.what());
   } catch (const std::runtime_error& err) {

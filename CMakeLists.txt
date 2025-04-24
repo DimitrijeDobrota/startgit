@@ -25,10 +25,10 @@ find_package(poafloc 1.2 CONFIG REQUIRED)
 add_library(
     startgit_lib OBJECT
     source/arguments.cpp
-    source/common.cpp
     source/branch.cpp
     source/commit.cpp
     source/diff.cpp
+    source/document.cpp
     source/file.cpp
     source/html.cpp
     source/repository.cpp
