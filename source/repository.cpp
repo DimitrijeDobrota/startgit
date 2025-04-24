@@ -8,7 +8,8 @@ namespace startgit
 repository::repository(const std::filesystem::path& path)
     : m_path(path)
     , m_repo(git2wrap::repository::open(
-          path.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr))
+          path.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr
+      ))
     , m_name(path.stem().string())
     , m_url(read_file(path, "url"))
     , m_owner(read_file(path, "owner"))
@@ -33,8 +34,9 @@ repository::repository(const std::filesystem::path& path)
   m_repo.tag_foreach(callback, this);
 }
 
-std::string repository::read_file(const std::filesystem::path& base,
-                                  const char* file)
+std::string repository::read_file(
+    const std::filesystem::path& base, const char* file
+)
 {
   std::ifstream ifs(base / file);
 

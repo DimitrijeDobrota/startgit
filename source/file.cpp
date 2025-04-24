@@ -13,8 +13,8 @@ namespace startgit
 file::file(const git2wrap::tree_entry& entry, std::filesystem::path path)
     : m_filemode(filemode(entry.get_filemode()))
     , m_path(std::move(path))
-    , m_blob(
-          git2wrap::repository(entry.get_owner()).blob_lookup(entry.get_id()))
+    , m_blob(git2wrap::repository(entry.get_owner()).blob_lookup(entry.get_id())
+      )
 {
 }
 

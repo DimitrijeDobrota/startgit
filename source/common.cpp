@@ -9,12 +9,14 @@
 namespace startgit
 {
 
-void write_header(std::ostream& ost,
-                  const std::string& title_txt,
-                  const std::string& description,
-                  const std::string& author,
-                  const std::string& relpath,
-                  bool has_feed)
+void write_header(
+    std::ostream& ost,
+    const std::string& title_txt,
+    const std::string& description,
+    const std::string& author,
+    const std::string& relpath,
+    bool has_feed
+)
 {
   using namespace hemplate::html;  // NOLINT
   using hemplate::html::div;
@@ -97,22 +99,28 @@ void write_header(std::ostream& ost,
   });
 }
 
-void write_header(std::ostream& ost,
-                  const repository& repo,
-                  const branch& branch,
-                  const std::string& description,
-                  const std::string& relpath,
-                  bool has_feed)
+void write_header(
+    std::ostream& ost,
+    const repository& repo,
+    const branch& branch,
+    const std::string& description,
+    const std::string& relpath,
+    bool has_feed
+)
 {
-  write_header(ost,
-               std::format("{} ({}) - {}",
-                           repo.get_name(),
-                           branch.get_name(),
-                           repo.get_description()),
-               description,
-               repo.get_owner(),
-               relpath,
-               has_feed);
+  write_header(
+      ost,
+      std::format(
+          "{} ({}) - {}",
+          repo.get_name(),
+          branch.get_name(),
+          repo.get_description()
+      ),
+      description,
+      repo.get_owner(),
+      relpath,
+      has_feed
+  );
 }
 
 void write_footer(std::ostream& ost)
@@ -132,7 +140,8 @@ void write_footer(std::ostream& ost)
       "   arr[4] = value;"
       "   history.replaceState(history.state, '', arr.join('/'));"
       "   location.reload();"
-      "}");
+      "}"
+  );
   ost << style(
       "  table { "
       " margin-left: 0;"
@@ -149,7 +158,8 @@ void write_footer(std::ostream& ost)
       " color: var(--theme_green);"
       "} .del {"
       " color: var(--theme_red);"
-      "}");
+      "}"
+  );
   ost << body();
   ost << html();
 }

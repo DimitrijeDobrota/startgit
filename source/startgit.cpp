@@ -23,18 +23,21 @@ namespace
 {
 
 template<std::ranges::forward_range R>
-void wtable(std::ostream& ost,
-            std::initializer_list<std::string_view> head,
-            const R& range,
-            based::Procedure<std::ranges::range_value_t<R>> auto proc)
+void wtable(
+    std::ostream& ost,
+    std::initializer_list<std::string_view> head,
+    const R& range,
+    based::Procedure<std::ranges::range_value_t<R>> auto proc
+)
 {
   using namespace hemplate::html;  // NOLINT
 
   ost << table {
       thead {
           tr {
-              transform(head,
-                        [](const auto& elem) { return td {text {elem}}; }),
+              transform(
+                  head, [](const auto& elem) { return td {text {elem}}; }
+              ),
           },
       },
       tbody {
@@ -48,10 +51,12 @@ void wtable(std::ostream& ost,
 namespace startgit
 {
 
-void write_title(std::ostream& ost,
-                 const repository& repo,
-                 const branch& branch,
-                 const std::string& relpath = "./")
+void write_title(
+    std::ostream& ost,
+    const repository& repo,
+    const branch& branch,
+    const std::string& relpath = "./"
+)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -77,18 +82,20 @@ void write_title(std::ostream& ost,
               a {{{"href", relpath + "refs.html"}}, "Refs"},
           },
       },
-      transform(branch.get_special(),
-                [&](const auto& file)
-                {
-                  auto path = file.get_path();
-                  const auto filename = path.replace_extension("html").string();
-                  const auto name = path.replace_extension().string();
+      transform(
+          branch.get_special(),
+          [&](const auto& file)
+          {
+            auto path = file.get_path();
+            const auto filename = path.replace_extension("html").string();
+            const auto name = path.replace_extension().string();
 
-                  return transparent {
-                      text {" | "},
-                      a {{{"href", relpath + filename}}, name},
-                  };
-                }),
+            return transparent {
+                text {" | "},
+                a {{{"href", relpath + filename}}, name},
+            };
+          }
+      ),
   } << hr {};
 }
 
@@ -96,73 +103,79 @@ void write_commit_table(std::ostream& ost, const branch& branch)
 {
   using namespace hemplate::html;  // NOLINT
 
-  wtable(ost,
-         {"Date", "Commit message", "Author", "Files", "+", "-"},
-         branch.get_commits(),
-         [&](const auto& commit)
-         {
-           const auto idd = commit.get_id();
-           const auto url = std::format("./commit/{}.html", idd);
+  wtable(
+      ost,
+      {"Date", "Commit message", "Author", "Files", "+", "-"},
+      branch.get_commits(),
+      [&](const auto& commit)
+      {
+        const auto idd = commit.get_id();
+        const auto url = std::format("./commit/{}.html", idd);
 
-           return tr {
-               td {commit.get_time()},
-               td {a {{{"href", url}}, commit.get_summary()}},
-               td {commit.get_author_name()},
-               td {commit.get_diff().get_files_changed()},
-               td {commit.get_diff().get_insertions()},
-               td {commit.get_diff().get_deletions()},
-           };
-         });
+        return tr {
+            td {commit.get_time()},
+            td {a {{{"href", url}}, commit.get_summary()}},
+            td {commit.get_author_name()},
+            td {commit.get_diff().get_files_changed()},
+            td {commit.get_diff().get_insertions()},
+            td {commit.get_diff().get_deletions()},
+        };
+      }
+  );
 }
 
 void write_files_table(std::ostream& ost, const branch& branch)
 {
   using namespace hemplate::html;  // NOLINT
 
-  wtable(ost,
-         {"Mode", "Name", "Size"},
-         branch.get_files(),
-         [&](const auto& file)
-         {
-           const auto path = file.get_path().string();
-           const auto url = std::format("./file/{}.html", path);
-           const auto size = file.is_binary()
-               ? std::format("{}B", file.get_size())
-               : std::format("{}L", file.get_lines());
+  wtable(
+      ost,
+      {"Mode", "Name", "Size"},
+      branch.get_files(),
+      [&](const auto& file)
+      {
+        const auto path = file.get_path().string();
+        const auto url = std::format("./file/{}.html", path);
+        const auto size = file.is_binary()
+            ? std::format("{}B", file.get_size())
+            : std::format("{}L", file.get_lines());
 
-           return tr {
-               td {file.get_filemode()},
-               td {a {{{"href", url}}, path}},
-               td {size},
-           };
-         });
+        return tr {
+            td {file.get_filemode()},
+            td {a {{{"href", url}}, path}},
+            td {size},
+        };
+      }
+  );
 }
 
-void write_branch_table(std::ostream& ost,
-                        const repository& repo,
-                        const std::string& branch_name)
+void write_branch_table(
+    std::ostream& ost, const repository& repo, const std::string& branch_name
+)
 {
   using namespace hemplate::html;  // NOLINT
 
   ost << h2("Branches");
-  wtable(ost,
-         {"&nbsp;", "Name", "Last commit date", "Author"},
-         repo.get_branches(),
-         [&](const auto& branch)
-         {
-           const auto& last = branch.get_last_commit();
-           const auto url = branch.get_name() != branch_name
-               ? std::format("../{}/refs.html", branch.get_name())
-               : "";
-           const auto name = branch.get_name() == branch_name ? "*" : "&nbsp;";
+  wtable(
+      ost,
+      {"&nbsp;", "Name", "Last commit date", "Author"},
+      repo.get_branches(),
+      [&](const auto& branch)
+      {
+        const auto& last = branch.get_last_commit();
+        const auto url = branch.get_name() != branch_name
+            ? std::format("../{}/refs.html", branch.get_name())
+            : "";
+        const auto name = branch.get_name() == branch_name ? "*" : "&nbsp;";
 
-           return tr {
-               td {name},
-               td {a {{{"href", url}}, branch.get_name()}},
-               td {last.get_time()},
-               td {last.get_author_name()},
-           };
-         });
+        return tr {
+            td {name},
+            td {a {{{"href", url}}, branch.get_name()}},
+            td {last.get_time()},
+            td {last.get_author_name()},
+        };
+      }
+  );
 }
 
 void write_tag_table(std::ostream& ost, const repository& repo)
@@ -170,18 +183,20 @@ void write_tag_table(std::ostream& ost, const repository& repo)
   using namespace hemplate::html;  // NOLINT
 
   ost << h2("Tags");
-  wtable(ost,
-         {"&nbsp;", "Name", "Last commit date", "Author"},
-         repo.get_tags(),
-         [&](const auto& tag)
-         {
-           return tr {
-               td {"&nbsp;"},
-               td {tag.get_name()},
-               td {tag.get_time()},
-               td {tag.get_author()},
-           };
-         });
+  wtable(
+      ost,
+      {"&nbsp;", "Name", "Last commit date", "Author"},
+      repo.get_tags(),
+      [&](const auto& tag)
+      {
+        return tr {
+            td {"&nbsp;"},
+            td {tag.get_name()},
+            td {tag.get_time()},
+            td {tag.get_author()},
+        };
+      }
+  );
 }
 
 void write_file_changes(std::ostream& ost, const diff& diff)
@@ -189,47 +204,51 @@ void write_file_changes(std::ostream& ost, const diff& diff)
   using namespace hemplate::html;  // NOLINT
 
   ost << b("Diffstat:");
-  wtable(ost,
-         {},
-         diff.get_deltas(),
-         [&](const auto& delta)
-         {
-           static const char* marker = " ADMRC  T  ";
+  wtable(
+      ost,
+      {},
+      diff.get_deltas(),
+      [&](const auto& delta)
+      {
+        static const char* marker = " ADMRC  T  ";
 
-           const std::string link = std::format("#{}", delta->new_file.path);
+        const std::string link = std::format("#{}", delta->new_file.path);
 
-           uint32_t add = delta.get_adds();
-           uint32_t del = delta.get_dels();
-           const uint32_t changed = add + del;
-           const uint32_t total = 80;
-           if (changed > total) {
-             const double percent = 1.0 * total / changed;
+        uint32_t add = delta.get_adds();
+        uint32_t del = delta.get_dels();
+        const uint32_t changed = add + del;
+        const uint32_t total = 80;
+        if (changed > total) {
+          const double percent = 1.0 * total / changed;
 
-             if (add > 0) {
-               add = static_cast<uint32_t>(std::lround(percent * add) + 1);
-             }
+          if (add > 0) {
+            add = static_cast<uint32_t>(std::lround(percent * add) + 1);
+          }
 
-             if (del > 0) {
-               del = static_cast<uint32_t>(std::lround(percent * del) + 1);
-             }
-           }
+          if (del > 0) {
+            del = static_cast<uint32_t>(std::lround(percent * del) + 1);
+          }
+        }
 
-           return tr {
-               td {std::string(1, marker[delta->status])},  // NOLINT
-               td {a {{{"href", link}}, delta->new_file.path}},
-               td {"|"},
-               td {
-                   span {{{"class", "add"}}, std::string(add, '+')},
-                   span {{{"class", "del"}}, std::string(del, '-')},
-               },
-           };
-         });
+        return tr {
+            td {std::string(1, marker[delta->status])},  // NOLINT
+            td {a {{{"href", link}}, delta->new_file.path}},
+            td {"|"},
+            td {
+                span {{{"class", "add"}}, std::string(add, '+')},
+                span {{{"class", "del"}}, std::string(del, '-')},
+            },
+        };
+      }
+  );
 
   ost << p {
-      std::format("{} files changed, {} insertions(+), {} deletions(-)",
-                  diff.get_files_changed(),
-                  diff.get_insertions(),
-                  diff.get_deletions()),
+      std::format(
+          "{} files changed, {} insertions(+), {} deletions(-)",
+          diff.get_files_changed(),
+          diff.get_insertions(),
+          diff.get_deletions()
+      ),
   };
 }
 
@@ -262,46 +281,52 @@ void write_file_diffs(std::ostream& ost, const diff& diff)
                   return transparent {
                       h4 {
                           text {
-                              std::format("@@ -{},{} +{},{} @@ ",
-                                          hunk->old_start,
-                                          hunk->old_lines,
-                                          hunk->new_start,
-                                          hunk->new_lines),
+                              std::format(
+                                  "@@ -{},{} +{},{} @@ ",
+                                  hunk->old_start,
+                                  hunk->old_lines,
+                                  hunk->new_start,
+                                  hunk->new_lines
+                              ),
                           },
                           text {
                               xmlencode(header.substr(header.rfind('@') + 2)),
                           },
                           span {
                               {{"style", "white-space: pre"}},
-                              transform(hunk.get_lines(),
-                                        [](const auto& line) -> element
-                                        {
-                                          using hemplate::html::div;
+                              transform(
+                                  hunk.get_lines(),
+                                  [](const auto& line) -> element
+                                  {
+                                    using hemplate::html::div;
 
-                                          if (line.is_add()) {
-                                            return div {
-                                                {{"class", "add"}},
-                                                xmlencode(line.get_content()),
-                                            };
-                                          }
+                                    if (line.is_add()) {
+                                      return div {
+                                          {{"class", "add"}},
+                                          xmlencode(line.get_content()),
+                                      };
+                                    }
 
-                                          if (line.is_del()) {
-                                            return div {
-                                                {{"class", "del"}},
-                                                xmlencode(line.get_content()),
-                                            };
-                                          }
+                                    if (line.is_del()) {
+                                      return div {
+                                          {{"class", "del"}},
+                                          xmlencode(line.get_content()),
+                                      };
+                                    }
 
-                                          return text {
-                                              xmlencode(line.get_content()),
-                                          };
-                                        }),
+                                    return text {
+                                        xmlencode(line.get_content()),
+                                    };
+                                  }
+                              ),
                           },
                       },
                   };
-                }),
+                }
+            ),
         };
-      });
+      }
+  );
 }
 
 void write_commit_diff(std::ostream& ost, const commit& commit)
@@ -380,16 +405,20 @@ void write_file_content(std::ostream& ost, const file& file)
   int count = 0;
   ost << span {
       {{"style", "white-space: pre;"}},
-      transform(lines,
-                [&](const auto& line)
-                {
-                  return text {
-                      std::format(R"(<a id="{0}" href="#{0}">{0:5}</a> {1}\n)",
-                                  count++,
-                                  xmlencode(line)),
+      transform(
+          lines,
+          [&](const auto& line)
+          {
+            return text {
+                std::format(
+                    R"(<a id="{0}" href="#{0}">{0:5}</a> {1}\n)",
+                    count++,
+                    xmlencode(line)
+                ),
 
-                  };
-                }),
+            };
+          }
+      ),
   };
 }
 
@@ -402,17 +431,21 @@ void write_html(std::ostream& ost, const file& file)
     ofs << std::string(str, size);
   };
 
-  md_html(file.get_content(),
-          static_cast<MD_SIZE>(file.get_size()),
-          process_output,
-          &ost,
-          MD_DIALECT_GITHUB,
-          0);
+  md_html(
+      file.get_content(),
+      static_cast<MD_SIZE>(file.get_size()),
+      process_output,
+      &ost,
+      MD_DIALECT_GITHUB,
+      0
+  );
 }
 
-void write_log(const std::filesystem::path& base,
-               const repository& repo,
-               const branch& branch)
+void write_log(
+    const std::filesystem::path& base,
+    const repository& repo,
+    const branch& branch
+)
 {
   std::ofstream ofs(base / "log.html");
 
@@ -422,9 +455,11 @@ void write_log(const std::filesystem::path& base,
   write_footer(ofs);
 }
 
-void write_file(const std::filesystem::path& base,
-                const repository& repo,
-                const branch& branch)
+void write_file(
+    const std::filesystem::path& base,
+    const repository& repo,
+    const branch& branch
+)
 {
   std::ofstream ofs(base / "files.html");
 
@@ -434,9 +469,11 @@ void write_file(const std::filesystem::path& base,
   write_footer(ofs);
 }
 
-void write_refs(const std::filesystem::path& base,
-                const repository& repo,
-                const branch& branch)
+void write_refs(
+    const std::filesystem::path& base,
+    const repository& repo,
+    const branch& branch
+)
 {
   std::ofstream ofs(base / "refs.html");
 
@@ -447,9 +484,11 @@ void write_refs(const std::filesystem::path& base,
   write_footer(ofs);
 }
 
-bool write_commits(const std::filesystem::path& base,
-                   const repository& repo,
-                   const branch& branch)
+bool write_commits(
+    const std::filesystem::path& base,
+    const repository& repo,
+    const branch& branch
+)
 {
   bool changed = false;
 
@@ -470,9 +509,11 @@ bool write_commits(const std::filesystem::path& base,
   return changed;
 }
 
-void write_files(const std::filesystem::path& base,
-                 const repository& repo,
-                 const branch& branch)
+void write_files(
+    const std::filesystem::path& base,
+    const repository& repo,
+    const branch& branch
+)
 {
   for (const auto& file : branch.get_files()) {
     const std::filesystem::path path =
@@ -495,9 +536,11 @@ void write_files(const std::filesystem::path& base,
   }
 }
 
-void write_readme_licence(const std::filesystem::path& base,
-                          const repository& repo,
-                          const branch& branch)
+void write_readme_licence(
+    const std::filesystem::path& base,
+    const repository& repo,
+    const branch& branch
+)
 {
   for (const auto& file : branch.get_special()) {
     std::ofstream ofs(base / file.get_path().replace_extension("html"));
@@ -508,9 +551,9 @@ void write_readme_licence(const std::filesystem::path& base,
   }
 }
 
-void write_atom(std::ostream& ost,
-                const branch& branch,
-                const std::string& base_url)
+void write_atom(
+    std::ostream& ost, const branch& branch, const std::string& base_url
+)
 {
   using namespace hemplate::atom;  // NOLINT
   using hemplate::atom::link;
@@ -534,30 +577,32 @@ void write_atom(std::ostream& ost,
       author {name {args.author}},
       link {self, " "},
       link {alter, " "},
-      transform(branch.get_commits(),
-                [&](const auto& commit)
-                {
-                  const auto url = std::format(
-                      "{}/commit/{}.html", base_url, commit.get_id());
+      transform(
+          branch.get_commits(),
+          [&](const auto& commit)
+          {
+            const auto url =
+                std::format("{}/commit/{}.html", base_url, commit.get_id());
 
-                  return entry {
-                      id {url},
-                      updated {format_time(commit.get_time_raw())},
-                      title {commit.get_summary()},
-                      link {{{"href", url}}, " "},
-                      author {
-                          name {commit.get_author_name()},
-                          email {commit.get_author_email()},
-                      },
-                      content {commit.get_message()},
-                  };
-                }),
+            return entry {
+                id {url},
+                updated {format_time(commit.get_time_raw())},
+                title {commit.get_summary()},
+                link {{{"href", url}}, " "},
+                author {
+                    name {commit.get_author_name()},
+                    email {commit.get_author_email()},
+                },
+                content {commit.get_message()},
+            };
+          }
+      ),
   };
 }
 
-void write_rss(std::ostream& ost,
-               const branch& branch,
-               const std::string& base_url)
+void write_rss(
+    std::ostream& ost, const branch& branch, const std::string& base_url
+)
 {
   using namespace hemplate::rss;  // NOLINT
   using hemplate::rss::link;
@@ -572,22 +617,26 @@ void write_rss(std::ostream& ost,
           generator {"startgit"},
           language {"en-us"},
           atomLink {{{"href", base_url + "/atom.xml"}}},
-          transform(branch.get_commits(),
-                    [&](const auto& commit)
-                    {
-                      const auto url = std::format(
-                          "{}/commit/{}.html", base_url, commit.get_id());
+          transform(
+              branch.get_commits(),
+              [&](const auto& commit)
+              {
+                const auto url =
+                    std::format("{}/commit/{}.html", base_url, commit.get_id());
 
-                      return item {
-                          title {commit.get_summary()},
-                          link {url},
-                          guid {url},
-                          pubDate {format_time(commit.get_time_raw())},
-                          author {std::format("{} ({})",
-                                              commit.get_author_email(),
-                                              commit.get_author_name())},
-                      };
-                    }),
+                return item {
+                    title {commit.get_summary()},
+                    link {url},
+                    guid {url},
+                    pubDate {format_time(commit.get_time_raw())},
+                    author {std::format(
+                        "{} ({})",
+                        commit.get_author_email(),
+                        commit.get_author_name()
+                    )},
+                };
+              }
+          ),
       },
   };
 }
@@ -748,8 +797,9 @@ int main(int argc, char* argv[])
       write_rss(rss, branch, absolute);
     }
   } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
-    std::cerr << std::format("Warning: {} is not a repository\n",
-                             args.repos[0].string());
+    std::cerr << std::format(
+        "Warning: {} is not a repository\n", args.repos[0].string()
+    );
   } catch (const git2wrap::runtime_error& err) {
     std::cerr << std::format("Error (git2wrap): {}\n", err.what());
   } catch (const std::runtime_error& err) {

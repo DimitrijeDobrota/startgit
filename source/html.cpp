@@ -53,8 +53,9 @@ public:
   void render_open_ol_block(const MD_BLOCK_OL_DETAIL* det);
   void render_open_li_block(const MD_BLOCK_LI_DETAIL* det);
   void render_open_code_block(const MD_BLOCK_CODE_DETAIL* det);
-  void render_open_td_block(const MD_CHAR* cell_type,
-                            const MD_BLOCK_TD_DETAIL* det);
+  void render_open_td_block(
+      const MD_CHAR* cell_type, const MD_BLOCK_TD_DETAIL* det
+  );
   void render_open_a_span(const MD_SPAN_A_DETAIL* det);
   void render_open_img_span(const MD_SPAN_IMG_DETAIL* det);
   void render_close_img_span(const MD_SPAN_IMG_DETAIL* det);
@@ -175,9 +176,11 @@ std::string translate_url(const MD_CHAR* data, MD_SIZE size)
         auto itr = startgit::args.special.find(url.substr(rslash + 1));
         if (itr != startgit::args.special.end()) {
           auto cpy = *itr;
-          url = std::format("{}/{}.html",
-                            url.substr(0, rslash),
-                            cpy.replace_extension().string());
+          url = std::format(
+              "{}/{}.html",
+              url.substr(0, rslash),
+              cpy.replace_extension().string()
+          );
         } else {
           const std::size_t slash = url.find('/', bpos + 1);
           url.replace(slash, 1, "/file/");
@@ -206,9 +209,9 @@ void md_html::render_url_escaped(const MD_CHAR* data, MD_SIZE size)
   MD_OFFSET beg = 0;
   MD_OFFSET off = 0;
 
-  const auto url = translate_url(data, size);
-  size = static_cast<unsigned>(url.size());
-  data = url.data();
+  const auto urll = translate_url(data, size);
+  size = static_cast<unsigned>(urll.size());
+  data = urll.data();
 
   while (true) {
     while (off < size && !md_html::need_url_esc(data[off])) {  // NOLINT
@@ -228,10 +231,12 @@ void md_html::render_url_escaped(const MD_CHAR* data, MD_SIZE size)
           break;
         default:
           hex[0] = '%';
-          hex[1] = hex_chars[(static_cast<unsigned>(data[off]) >> 4)  // NOLINT
-                             & 0xf];  // NOLINT
-          hex[2] = hex_chars[(static_cast<unsigned>(data[off]) >> 0)  // NOLINT
-                             & 0xf];  // NOLINT
+          hex[1] = hex_chars  // NOLINT
+              [(static_cast<unsigned>(data[off]) >> 4)  // NOLINT
+               & 0xf];  // NOLINT
+          hex[2] = hex_chars  // NOLINT
+              [(static_cast<unsigned>(data[off]) >> 0)  // NOLINT
+               & 0xf];  // NOLINT
           render_verbatim(hex.data(), 3);
           break;
       }
@@ -261,7 +266,8 @@ unsigned hex_val(char chr)
 void md_html::render_utf8_codepoint(unsigned codepoint, append_fn fn_append)
 {
   static const MD_CHAR utf8_replacement_char[] = {
-      char(0xef), char(0xbf), char(0xbd)};
+      char(0xef), char(0xbf), char(0xbd)
+  };
 
   unsigned char utf8[4];
   size_t n;
@@ -287,10 +293,12 @@ void md_html::render_utf8_codepoint(unsigned codepoint, append_fn fn_append)
   }
 
   if (0 < codepoint && codepoint <= 0x10ffff) {
-    std::invoke(fn_append,
-                this,
-                reinterpret_cast<char*>(utf8),
-                static_cast<MD_SIZE>(n));  // NOLINT
+    std::invoke(
+        fn_append,
+        this,
+        reinterpret_cast<char*>(utf8),
+        static_cast<MD_SIZE>(n)
+    );  // NOLINT
   } else {
     std::invoke(fn_append, this, utf8_replacement_char, 3);
   }
@@ -299,9 +307,9 @@ void md_html::render_utf8_codepoint(unsigned codepoint, append_fn fn_append)
 
 /* Translate entity to its UTF-8 equivalent, or output the verbatim one
  * if such entity is unknown (or if the translation is disabled). */
-void md_html::render_entity(const MD_CHAR* text,
-                            MD_SIZE size,
-                            append_fn fn_append)
+void md_html::render_entity(
+    const MD_CHAR* text, MD_SIZE size, append_fn fn_append
+)
 {
   /* We assume UTF-8 output is what is desired. */
   if (size > 3 && text[1] == '#') {  // NOLINT
@@ -366,7 +374,8 @@ void md_html::render_open_li_block(const MD_BLOCK_LI_DETAIL* det)
     render_verbatim(
         "<li class=\"task-list-item\">"
         "<input type=\"checkbox\" "
-        "class=\"task-list-item-checkbox\" disabled");
+        "class=\"task-list-item-checkbox\" disabled"
+    );
     if (det->task_mark == 'x' || det->task_mark == 'X') {
       render_verbatim(" checked");
     }
@@ -390,8 +399,9 @@ void md_html::render_open_code_block(const MD_BLOCK_CODE_DETAIL* det)
   render_verbatim(">");
 }
 
-void md_html::render_open_td_block(const MD_CHAR* cell_type,
-                                   const MD_BLOCK_TD_DETAIL* det)
+void md_html::render_open_td_block(
+    const MD_CHAR* cell_type, const MD_BLOCK_TD_DETAIL* det
+)
 {
   render_verbatim("<");
   render_verbatim(cell_type);
@@ -463,7 +473,8 @@ int enter_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
                                   "<h3>",
                                   "<h4>",
                                   "<h5>",
-                                  "<h6>"};
+                                  "<h6>"
+  };
   auto* data = static_cast<class md_html*>(userdata);
 
   switch (type) {
@@ -476,23 +487,25 @@ int enter_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
       data->render_verbatim("<ul>\n");
       break;
     case MD_BLOCK_OL:
-      data->render_open_ol_block(
-          static_cast<const MD_BLOCK_OL_DETAIL*>(detail));
+      data->render_open_ol_block(static_cast<const MD_BLOCK_OL_DETAIL*>(detail)
+      );
       break;
     case MD_BLOCK_LI:
-      data->render_open_li_block(
-          static_cast<const MD_BLOCK_LI_DETAIL*>(detail));
+      data->render_open_li_block(static_cast<const MD_BLOCK_LI_DETAIL*>(detail)
+      );
       break;
     case MD_BLOCK_HR:
       data->render_verbatim("<hr>\n");
       break;
     case MD_BLOCK_H:
       data->render_verbatim(
-          head[static_cast<MD_BLOCK_H_DETAIL*>(detail)->level - 1]);  // NOLINT
+          head[static_cast<MD_BLOCK_H_DETAIL*>(detail)->level - 1]  // NOLINT
+      );
       break;
     case MD_BLOCK_CODE:
       data->render_open_code_block(
-          static_cast<const MD_BLOCK_CODE_DETAIL*>(detail));
+          static_cast<const MD_BLOCK_CODE_DETAIL*>(detail)
+      );
       break;
     case MD_BLOCK_HTML: /* noop */
       break;
@@ -512,12 +525,14 @@ int enter_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
       data->render_verbatim("<tr>\n");
       break;
     case MD_BLOCK_TH:
-      data->render_open_td_block("th",
-                                 static_cast<MD_BLOCK_TD_DETAIL*>(detail));
+      data->render_open_td_block(
+          "th", static_cast<MD_BLOCK_TD_DETAIL*>(detail)
+      );
       break;
     case MD_BLOCK_TD:
-      data->render_open_td_block("td",
-                                 static_cast<MD_BLOCK_TD_DETAIL*>(detail));
+      data->render_open_td_block(
+          "td", static_cast<MD_BLOCK_TD_DETAIL*>(detail)
+      );
       break;
   }
 
@@ -532,7 +547,8 @@ int leave_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
                                   "</h3>\n",
                                   "</h4>\n",
                                   "</h5>\n",
-                                  "</h6>\n"};
+                                  "</h6>\n"
+  };
   auto* data = static_cast<class md_html*>(userdata);
 
   switch (type) {
@@ -554,7 +570,8 @@ int leave_block_callback(MD_BLOCKTYPE type, void* detail, void* userdata)
       break;
     case MD_BLOCK_H:
       data->render_verbatim(
-          head[static_cast<MD_BLOCK_H_DETAIL*>(detail)->level - 1]);  // NOLINT
+          head[static_cast<MD_BLOCK_H_DETAIL*>(detail)->level - 1]  // NOLINT
+      );
       break;
     case MD_BLOCK_CODE:
       data->render_verbatim("</code></pre>\n");
@@ -630,7 +647,8 @@ int enter_span_callback(MD_SPANTYPE type, void* detail, void* userdata)
       break;
     case MD_SPAN_WIKILINK:
       data->render_open_wikilink_span(
-          static_cast<MD_SPAN_WIKILINK_DETAIL*>(detail));
+          static_cast<MD_SPAN_WIKILINK_DETAIL*>(detail)
+      );
       break;
   }
 
@@ -683,10 +701,9 @@ int leave_span_callback(MD_SPANTYPE type, void* detail, void* userdata)
   return 0;
 }
 
-int text_callback(MD_TEXTTYPE type,
-                  const MD_CHAR* text,
-                  MD_SIZE size,
-                  void* userdata)
+int text_callback(
+    MD_TEXTTYPE type, const MD_CHAR* text, MD_SIZE size, void* userdata
+)
 {
   auto* data = static_cast<class md_html*>(userdata);
 
@@ -695,8 +712,8 @@ int text_callback(MD_TEXTTYPE type,
       data->render_utf8_codepoint(0x0000, &md_html::render_verbatim);
       break;
     case MD_TEXT_BR:
-      data->render_verbatim(
-          (data->image_nesting_level == 0 ? ("<br>\n") : " "));
+      data->render_verbatim((data->image_nesting_level == 0 ? ("<br>\n") : " ")
+      );
       break;
     case MD_TEXT_SOFTBR:
       data->render_verbatim((data->image_nesting_level == 0 ? "\n" : " "));
@@ -718,24 +735,33 @@ int text_callback(MD_TEXTTYPE type,
 namespace startgit
 {
 
-int md_html(const MD_CHAR* input,
-            MD_SIZE input_size,
-            void (*process_output)(const MD_CHAR*, MD_SIZE, void*),
-            void* userdata,
-            unsigned parser_flags,
-            unsigned renderer_flags)
+int md_html(
+    const MD_CHAR* input,
+    MD_SIZE input_size,
+    void (*process_output)(const MD_CHAR*, MD_SIZE, void*),
+    void* userdata,
+    unsigned parser_flags,
+    unsigned renderer_flags
+)
 {
-  class md_html render = {process_output, userdata, renderer_flags, 0};
+  class md_html render = {
+      .process_output = process_output,
+      .userdata = userdata,
+      .flags = renderer_flags,
+      .image_nesting_level = 0
+  };
 
-  const MD_PARSER parser = {0,
-                            parser_flags,
-                            enter_block_callback,
-                            leave_block_callback,
-                            enter_span_callback,
-                            leave_span_callback,
-                            text_callback,
-                            nullptr,
-                            nullptr};
+  const MD_PARSER parser = {
+      0,
+      parser_flags,
+      enter_block_callback,
+      leave_block_callback,
+      enter_span_callback,
+      leave_span_callback,
+      text_callback,
+      nullptr,
+      nullptr
+  };
 
   return md_parse(input, input_size, &parser, &render);
 }

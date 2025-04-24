@@ -109,12 +109,14 @@ int main(int argc, char* argv[])
     output_dir = std::filesystem::canonical(output_dir);
 
     std::ofstream ofs(args.output_dir / "index.html");
-    write_header(ofs,
-                 args.title,
-                 args.description,
-                 args.author,
-                 "./",
-                 /*has_feed=*/false);
+    write_header(
+        ofs,
+        args.title,
+        args.description,
+        args.author,
+        "./",
+        /*has_feed=*/false
+    );
 
     ofs << h1(args.title);
     ofs << p(args.description);
@@ -129,39 +131,41 @@ int main(int argc, char* argv[])
             },
         },
         tbody {
-            transform(args.repos,
-                      [](const auto& repo_path) -> element
-                      {
-                        using git2wrap::error_code_t::ENOTFOUND;
-                        try {
-                          const repository repo(repo_path);
+            transform(
+                args.repos,
+                [](const auto& repo_path) -> element
+                {
+                  using git2wrap::error_code_t::ENOTFOUND;
+                  try {
+                    const repository repo(repo_path);
 
-                          for (const auto& branch : repo.get_branches()) {
-                            if (branch.get_name() != "master") {
-                              continue;
-                            }
+                    for (const auto& branch : repo.get_branches()) {
+                      if (branch.get_name() != "master") {
+                        continue;
+                      }
 
-                            const auto url =
-                                repo.get_name() + "/master/log.html";
-                            return tr {
-                                td {a {{{"href", url}}, repo.get_name()}},
-                                td {repo.get_description()},
-                                td {repo.get_owner()},
-                                td {branch.get_commits()[0].get_time()},
-                            };
-                          }
+                      const auto url = repo.get_name() + "/master/log.html";
+                      return tr {
+                          td {a {{{"href", url}}, repo.get_name()}},
+                          td {repo.get_description()},
+                          td {repo.get_owner()},
+                          td {branch.get_commits()[0].get_time()},
+                      };
+                    }
 
-                          std::cerr << std::format(
-                              "Warning: {} doesn't have master branch\n",
-                              repo.get_path().string());
-                        } catch (const git2wrap::error<ENOTFOUND>& err) {
-                          std::cerr << std::format(
-                              "Warning: {} is not a repository\n",
-                              repo_path.string());
-                        }
+                    std::cerr << std::format(
+                        "Warning: {} doesn't have master branch\n",
+                        repo.get_path().string()
+                    );
+                  } catch (const git2wrap::error<ENOTFOUND>& err) {
+                    std::cerr << std::format(
+                        "Warning: {} is not a repository\n", repo_path.string()
+                    );
+                  }
 
-                        return text();
-                      }),
+                  return text();
+                }
+            ),
         },
     };
 

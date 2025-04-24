@@ -34,8 +34,9 @@ public:
   const auto& get_tags() const { return m_tags; }
 
 private:
-  static std::string read_file(const std::filesystem::path& base,
-                               const char* file);
+  static std::string read_file(
+      const std::filesystem::path& base, const char* file
+  );
 
   std::filesystem::path m_path;
   git2wrap::repository m_repo;

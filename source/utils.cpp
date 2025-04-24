@@ -12,7 +12,8 @@ auto sec_since_epoch(std::int64_t sec)
 {
   return std::chrono::time_point_cast<std::chrono::seconds>(
       std::chrono::system_clock::from_time_t(time_t {0})
-      + std::chrono::seconds(sec));
+      + std::chrono::seconds(sec)
+  );
 }
 
 std::string time_short(std::int64_t date)
@@ -22,11 +23,13 @@ std::string time_short(std::int64_t date)
 
 std::string time_long(const git2wrap::time& time)
 {
-  return std::format("{:%a, %e %b %Y %H:%M:%S} {}{:02}{:02}",
-                     sec_since_epoch(time.time),
-                     time.offset < 0 ? '-' : '+',
-                     time.offset / 60,  // NOLINT
-                     time.offset % 60);  // NOLINT
+  return std::format(
+      "{:%a, %e %b %Y %H:%M:%S} {}{:02}{:02}",
+      sec_since_epoch(time.time),
+      time.offset < 0 ? '-' : '+',
+      time.offset / 60,  // NOLINT
+      time.offset % 60  // NOLINT
+  );
 }
 // NOLINTBEGIN
 // clang-format off

@@ -73,18 +73,20 @@ public:
   const std::vector<delta>& get_deltas() const;
 
 private:
-  static int file_cb(const git_diff_delta* delta,
-                     float progress,
-                     void* payload);
+  static int file_cb(
+      const git_diff_delta* delta, float progress, void* payload
+  );
 
-  static int hunk_cb(const git_diff_delta* delta,
-                     const git_diff_hunk* hunk,
-                     void* payload);
+  static int hunk_cb(
+      const git_diff_delta* delta, const git_diff_hunk* hunk, void* payload
+  );
 
-  static int line_cb(const git_diff_delta* delta,
-                     const git_diff_hunk* hunk,
-                     const git_diff_line* line,
-                     void* payload);
+  static int line_cb(
+      const git_diff_delta* delta,
+      const git_diff_hunk* hunk,
+      const git_diff_line* line,
+      void* payload
+  );
 
   git2wrap::diff m_diff;
   git2wrap::diff_stats m_stats;
