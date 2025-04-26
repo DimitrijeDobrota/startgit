@@ -13,7 +13,7 @@ void document::render(std::ostream& ost, const content_t& content) const
   using hemplate::html::div;
   using hemplate::html::link;
 
-  ost << transparent {
+  ost << element {
       doctype {},
       html {
           {{"lang", "en"}},
@@ -50,7 +50,7 @@ void document::render(std::ostream& ost, const content_t& content) const
               }},
 
               // Rss feed
-              !m_has_feed ? text {} : [&]() -> element
+              !m_has_feed ? element {} : [&]() -> hemplate::element
               {
                 return link {{
                     {"rel", "alternate"},
@@ -61,7 +61,7 @@ void document::render(std::ostream& ost, const content_t& content) const
               }(),
 
               // Atom feed
-              !m_has_feed ? text {} : [&]() -> element
+              !m_has_feed ? element {} : [&]() -> hemplate::element
               {
                 return link {{
                     {"rel", "alternate"},

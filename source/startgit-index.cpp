@@ -124,14 +124,14 @@ hemplate::element write_table_row(const std::filesystem::path& repo_path)
     );
   }
 
-  return text();
+  return element {};
 }
 
 hemplate::element write_table()
 {
   using namespace hemplate::html;  // NOLINT
 
-  return transparent {
+  return element {
       h1 {args.title},
       p {args.description},
       table {

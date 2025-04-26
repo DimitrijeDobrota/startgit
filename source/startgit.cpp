@@ -38,9 +38,9 @@ hemplate::element wtable(
                   head_content,
                   [](const auto& elem)
                   {
-                    return td {text {
+                    return td {
                         elem,
-                    }};
+                    };
                   }
               ),
           },
@@ -64,7 +64,7 @@ hemplate::element page_title(
 {
   using namespace hemplate::html;  // NOLINT
 
-  return transparent {
+  return element {
       table {
           tr {
               td {
@@ -74,16 +74,16 @@ hemplate::element page_title(
           },
           tr {
               td {
-                  text("git clone "),
+                  "git clone ",
                   a {{{"href", repo.get_url()}}, repo.get_url()},
               },
           },
           tr {
               td {
                   a {{{"href", relpath + "log.html"}}, "Log"},
-                  text(" | "),
+                  " | ",
                   a {{{"href", relpath + "files.html"}}, "Files"},
-                  text(" | "),
+                  " | ",
                   a {{{"href", relpath + "refs.html"}}, "Refs"},
                   transform(
                       branch.get_special(),
@@ -94,8 +94,8 @@ hemplate::element page_title(
                             path.replace_extension("html").string();
                         const auto name = path.replace_extension().string();
 
-                        return transparent {
-                            text {" | "},
+                        return element {
+                            " | ",
                             a {{{"href", relpath + filename}}, name},
                         };
                       }
@@ -161,7 +161,7 @@ hemplate::element branch_table(
 {
   using namespace hemplate::html;  // NOLINT
 
-  return transparent {
+  return element {
       h2 {"Branches"},
       wtable(
           {"&nbsp;", "Name", "Last commit date", "Author"},
@@ -189,7 +189,7 @@ hemplate::element tag_table(const repository& repo)
 {
   using namespace hemplate::html;  // NOLINT
 
-  return transparent {
+  return element {
       h2 {"Tags"},
       wtable(
           {"&nbsp;", "Name", "Last commit date", "Author"},
@@ -211,7 +211,7 @@ hemplate::element file_changes(const diff& diff)
 {
   using namespace hemplate::html;  // NOLINT
 
-  return transparent {
+  return element {
       b {"Diffstat:"},
       wtable(
           {},
@@ -266,25 +266,21 @@ hemplate::element diff_hunk(const hunk& hunk)
   using namespace hemplate::html;  // NOLINT
 
   const std::string header(hunk->header);  // NOLINT
-  return transparent {
+  return element {
       h4 {
-          text {
-              std::format(
-                  "@@ -{},{} +{},{} @@ ",
-                  hunk->old_start,
-                  hunk->old_lines,
-                  hunk->new_start,
-                  hunk->new_lines
-              ),
-          },
-          text {
-              xmlencode(header.substr(header.rfind('@') + 2)),
-          },
+          std::format(
+              "@@ -{},{} +{},{} @@ ",
+              hunk->old_start,
+              hunk->old_lines,
+              hunk->new_start,
+              hunk->new_lines
+          ),
+          xmlencode(header.substr(header.rfind('@') + 2)),
           span {
               {{"style", "white-space: pre"}},
               transform(
                   hunk.get_lines(),
-                  [](const auto& line) -> element
+                  [](const auto& line) -> hemplate::element
                   {
                     using hemplate::html::div;
 
@@ -302,9 +298,7 @@ hemplate::element diff_hunk(const hunk& hunk)
                       };
                     }
 
-                    return text {
-                        xmlencode(line.get_content()),
-                    };
+                    return element(xmlencode(line.get_content()));
                   }
               ),
           },
@@ -325,12 +319,14 @@ hemplate::element file_diffs(const diff& diff)
         const auto new_link = std::format("../file/{}.html", new_file);
         const auto old_link = std::format("../file/{}.html", old_file);
 
-        return transparent {
+        return element {
             h3 {
                 {{"id", delta->new_file.path}},
-                text {"diff --git"},
-                text {text {"a/"}, a {{{"href", new_link}}, new_file}},
-                text {text {"b/"}, a {{{"href", old_link}}, old_file}},
+                "diff --git",
+                "a/",
+                a {{{"href", new_link}}, new_file},
+                "b/",
+                a {{{"href", old_link}}, old_file},
             },
             transform(delta.get_hunks(), diff_hunk),
         };
@@ -345,14 +341,15 @@ hemplate::element commit_diff(const commit& commit)
   const auto url = std::format("../commit/{}.html", commit.get_id());
   const auto mailto = std::string("mailto:") + commit.get_author_email();
 
-  return transparent {
+  return element {
       table {
           tbody {
               tr {
                   td {b {"commit"}},
                   td {a {{{"href", url}}, commit.get_id()}},
               },
-              commit.get_parentcount() == 0 ? text {} : [&]() -> element
+              commit.get_parentcount() == 0 ? element {}
+                                            : [&]() -> hemplate::element
               {
                 const auto purl =
                     std::format("../commit/{}.html", commit.get_parent_id());
@@ -365,7 +362,7 @@ hemplate::element commit_diff(const commit& commit)
               tr {
                   td {b {"author"}},
                   td {
-                      text {commit.get_author_name()},
+                      commit.get_author_name(),
                       a {
                           {{"href", mailto}},
                           "&lt;" + commit.get_author_email() + "&gt;",
@@ -381,7 +378,7 @@ hemplate::element commit_diff(const commit& commit)
       br {},
       p {
           {{"style", "white-space: pre;"}},
-          text {xmlencode(commit.get_message())},
+          xmlencode(commit.get_message()),
       },
       file_changes(commit.get_diff()),
       hr {},
@@ -395,7 +392,7 @@ hemplate::element write_file_title(const file& file)
 
   const auto path = file.get_path().filename().string();
 
-  return transparent {
+  return element {
       h3 {std::format("{} ({}B)", path, file.get_size())},
       hr {},
   };
@@ -426,14 +423,11 @@ hemplate::element write_file_content(const file& file)
           lines,
           [&](const auto& line)
           {
-            return text {
-                std::format(
-                    R"(<a id="{0}" href="#{0}">{0:5}</a> {1})",
-                    count++,
-                    xmlencode(line)
-                ),
-
-            };
+            return std::format(
+                R"(<a id="{0}" href="#{0}">{0:5}</a> {1})",
+                count++,
+                xmlencode(line)
+            );
           }
       ),
   };
@@ -470,7 +464,7 @@ void write_log(
           ofs,
           [&]()
           {
-            return hemplate::transparent {
+            return hemplate::element {
                 page_title(repo, branch),
                 commit_table(branch),
             };
@@ -489,7 +483,7 @@ void write_file(
       ofs,
       [&]()
       {
-        return hemplate::transparent {
+        return hemplate::element {
             page_title(repo, branch),
             files_table(branch),
         };
@@ -508,7 +502,7 @@ void write_refs(
       ofs,
       [&]()
       {
-        return hemplate::transparent {
+        return hemplate::element {
             page_title(repo, branch),
             branch_table(repo, branch.get_name()),
             tag_table(repo),
@@ -536,7 +530,7 @@ bool write_commits(
         ofs,
         [&]()
         {
-          return hemplate::transparent {
+          return hemplate::element {
               page_title(repo, branch, "../"),
               commit_diff(commit),
           };
@@ -571,7 +565,7 @@ void write_files(
         ofs,
         [&]()
         {
-          return hemplate::transparent {
+          return hemplate::element {
               page_title(repo, branch, relpath),
               write_file_title(file),
               write_file_content(file),
@@ -594,7 +588,7 @@ void write_readme_licence(
         sstr,
         [&]()
         {
-          return hemplate::transparent {
+          return hemplate::element {
               page_title(repo, branch),
           };
         }
