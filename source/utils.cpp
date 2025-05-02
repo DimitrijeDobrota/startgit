@@ -34,20 +34,6 @@ std::string time_long(const git2wrap::time& time)
 // NOLINTBEGIN
 // clang-format off
 
-void xmlencode(std::ostream& ost, const std::string& str)
-{
-    for (const char c: str) {
-        switch(c) {
-        case '<':  ost << "&lt;"; continue;
-        case '>':  ost << "&gt;"; continue;
-        case '\'': ost << "&#39;"; continue;
-        case '&':  ost << "&amp;"; continue;
-        case '"':  ost << "&quot;"; continue;
-        }
-        ost << c;
-    }
-}
-
 std::string xmlencode(const std::string& str)
 {
     std::string res;
@@ -60,6 +46,7 @@ std::string xmlencode(const std::string& str)
         case '\'': res += "&#39;"; continue;
         case '&':  res += "&amp;"; continue;
         case '"':  res += "&quot;"; continue;
+        case '\n': res += "<br>"; continue;
         }
         res += c;
     }

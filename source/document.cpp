@@ -125,7 +125,10 @@ void document::render(std::ostream& ost, const content_t& content) const
                      " color: var(--theme_green);"
                      "} .del {"
                      " color: var(--theme_red);"
-                     "}"},
+                     "} .inline {"
+                     " white-space: pre;"
+                     "}"
+              },
           },
       },
   };

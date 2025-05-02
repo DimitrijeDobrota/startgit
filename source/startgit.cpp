@@ -275,32 +275,34 @@ element diff_hunk(const hunk& hunk)
               hunk->new_lines
           ),
           xmlencode(header.substr(header.rfind('@') + 2)),
-          span {
-              {{"style", "white-space: pre"}},
-              transform(
-                  hunk.get_lines(),
-                  [](const auto& line) -> element
-                  {
-                    using hemplate::html::div;
+      },
+      span {
+          transform(
+              hunk.get_lines(),
+              [](const auto& line) -> element
+              {
+                using hemplate::html::div;
 
-                    if (line.is_add()) {
-                      return div {
-                          {{"class", "add"}},
-                          xmlencode(line.get_content()),
-                      };
-                    }
+                if (line.is_add()) {
+                  return div {
+                      {{"class", "inline add"}},
+                      xmlencode(line.get_content()),
+                  };
+                }
 
-                    if (line.is_del()) {
-                      return div {
-                          {{"class", "del"}},
-                          xmlencode(line.get_content()),
-                      };
-                    }
+                if (line.is_del()) {
+                  return div {
+                      {{"class", "inline del"}},
+                      xmlencode(line.get_content()),
+                  };
+                }
 
-                    return element(xmlencode(line.get_content()));
-                  }
-              ),
-          },
+                return div {
+                    {{"class", "inline"}},
+                    xmlencode(line.get_content()),
+                };
+              }
+          ),
       },
   };
 }
@@ -377,7 +379,7 @@ element commit_diff(const commit& commit)
       },
       br {},
       p {
-          {{"style", "white-space: pre;"}},
+          {{"class", "inline"}},
           xmlencode(commit.get_message()),
       },
       file_changes(commit.get_diff()),
@@ -418,16 +420,18 @@ element write_file_content(const file& file)
 
   int count = 0;
   return span {
-      {{"style", "white-space: pre;"}},
       transform(
           lines,
           [&](const auto& line)
           {
-            return std::format(
-                R"(<a id="{0}" href="#{0}">{0:5}</a> {1})",
-                count++,
-                xmlencode(line)
-            );
+            return hemplate::html::div {
+                {{"class", "inline"}},
+                std::format(
+                    R"(<a id="{0}" href="#{0}">{0:5}</a> {1})",
+                    count++,
+                    xmlencode(line)
+                )
+            };
           }
       ),
   };
