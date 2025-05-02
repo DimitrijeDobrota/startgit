@@ -225,20 +225,17 @@ void md_html::render_url_escaped(const MD_CHAR* data, MD_SIZE size)
     if (off < size) {
       std::array<char, 3> hex = {0};
 
-      switch (data[off]) {  // NOLINT
-        case '&':
-          render_verbatim("&amp;");
-          break;
-        default:
-          hex[0] = '%';
-          hex[1] = hex_chars  // NOLINT
-              [(static_cast<unsigned>(data[off]) >> 4)  // NOLINT
-               & 0xf];  // NOLINT
-          hex[2] = hex_chars  // NOLINT
-              [(static_cast<unsigned>(data[off]) >> 0)  // NOLINT
-               & 0xf];  // NOLINT
-          render_verbatim(hex.data(), 3);
-          break;
+      if (data[off] == '&') {  // NOLINT
+        render_verbatim("&amp;");
+      } else {
+        hex[0] = '%';
+        hex[1] = hex_chars  // NOLINT
+            [(static_cast<unsigned>(data[off]) >> 4)  // NOLINT
+             & 0xf];  // NOLINT
+        hex[2] = hex_chars  // NOLINT
+            [(static_cast<unsigned>(data[off]) >> 0)  // NOLINT
+             & 0xf];  // NOLINT
+        render_verbatim(hex.data(), 3);
       }
       off++;
     } else {
@@ -343,17 +340,17 @@ void md_html::render_attribute(const MD_ATTRIBUTE* attr, append_fn fn_append)
     MD_SIZE size = attr->substr_offsets[i + 1] - off;  // NOLINT
     const MD_CHAR* text = attr->text + off;  // NOLINT
 
-    switch (type) {
-      case MD_TEXT_NULLCHAR:
-        render_utf8_codepoint(0x0000, &md_html::render_verbatim);
-        break;
-      case MD_TEXT_ENTITY:
-        render_entity(text, size, fn_append);
-        break;
-      default:
-        std::invoke(fn_append, this, text, size);
-        break;
+    if (type == MD_TEXT_NULLCHAR) {
+      render_utf8_codepoint(0x0000, &md_html::render_verbatim);
+      continue;
     }
+
+    if (type == MD_TEXT_ENTITY) {
+      render_entity(text, size, fn_append);
+      continue;
+    }
+
+    std::invoke(fn_append, this, text, size);
   }
 }
 
@@ -416,7 +413,7 @@ void md_html::render_open_td_block(
     case MD_ALIGN_RIGHT:
       render_verbatim(" align=\"right\">");
       break;
-    default:
+    case MD_ALIGN_DEFAULT:
       render_verbatim(">");
       break;
   }
@@ -724,7 +721,9 @@ int text_callback(
     case MD_TEXT_ENTITY:
       data->render_entity(text, size, &md_html::render_html_escaped);
       break;
-    default:
+    case MD_TEXT_NORMAL:
+    case MD_TEXT_CODE:
+    case MD_TEXT_LATEXMATH:
       data->render_html_escaped(text, size);
       break;
   }

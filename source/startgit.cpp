@@ -19,14 +19,15 @@
 #include "repository.hpp"
 #include "utils.hpp"
 
+using hemplate::element;
 namespace
 {
 
 template<std::ranges::forward_range R>
-hemplate::element wtable(
+element wtable(
     std::initializer_list<std::string_view> head_content,
     const R& range,
-    based::Procedure<std::ranges::range_value_t<R>> auto proc
+    based::Procedure<element, std::ranges::range_value_t<R>> auto proc
 )
 {
   using namespace hemplate::html;  // NOLINT
@@ -56,7 +57,7 @@ hemplate::element wtable(
 namespace startgit
 {
 
-hemplate::element page_title(
+element page_title(
     const repository& repo,
     const branch& branch,
     const std::string& relpath = "./"
@@ -107,7 +108,7 @@ hemplate::element page_title(
   };
 }
 
-hemplate::element commit_table(const branch& branch)
+element commit_table(const branch& branch)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -131,7 +132,7 @@ hemplate::element commit_table(const branch& branch)
   );
 }
 
-hemplate::element files_table(const branch& branch)
+element files_table(const branch& branch)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -155,9 +156,7 @@ hemplate::element files_table(const branch& branch)
   );
 }
 
-hemplate::element branch_table(
-    const repository& repo, const std::string& branch_name
-)
+element branch_table(const repository& repo, const std::string& branch_name)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -185,7 +184,7 @@ hemplate::element branch_table(
   };
 }
 
-hemplate::element tag_table(const repository& repo)
+element tag_table(const repository& repo)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -207,7 +206,7 @@ hemplate::element tag_table(const repository& repo)
   };
 }
 
-hemplate::element file_changes(const diff& diff)
+element file_changes(const diff& diff)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -261,7 +260,7 @@ hemplate::element file_changes(const diff& diff)
   };
 }
 
-hemplate::element diff_hunk(const hunk& hunk)
+element diff_hunk(const hunk& hunk)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -280,7 +279,7 @@ hemplate::element diff_hunk(const hunk& hunk)
               {{"style", "white-space: pre"}},
               transform(
                   hunk.get_lines(),
-                  [](const auto& line) -> hemplate::element
+                  [](const auto& line) -> element
                   {
                     using hemplate::html::div;
 
@@ -306,7 +305,7 @@ hemplate::element diff_hunk(const hunk& hunk)
   };
 }
 
-hemplate::element file_diffs(const diff& diff)
+element file_diffs(const diff& diff)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -334,7 +333,7 @@ hemplate::element file_diffs(const diff& diff)
   );
 }
 
-hemplate::element commit_diff(const commit& commit)
+element commit_diff(const commit& commit)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -348,8 +347,7 @@ hemplate::element commit_diff(const commit& commit)
                   td {b {"commit"}},
                   td {a {{{"href", url}}, commit.get_id()}},
               },
-              commit.get_parentcount() == 0 ? element {}
-                                            : [&]() -> hemplate::element
+              commit.get_parentcount() == 0 ? element {} : [&]() -> element
               {
                 const auto purl =
                     std::format("../commit/{}.html", commit.get_parent_id());
@@ -363,10 +361,12 @@ hemplate::element commit_diff(const commit& commit)
                   td {b {"author"}},
                   td {
                       commit.get_author_name(),
+                      "&lt;",
                       a {
                           {{"href", mailto}},
-                          "&lt;" + commit.get_author_email() + "&gt;",
+                          commit.get_author_email(),
                       },
+                      "&gt;",
                   },
               },
               tr {
@@ -386,7 +386,7 @@ hemplate::element commit_diff(const commit& commit)
   };
 }
 
-hemplate::element write_file_title(const file& file)
+element write_file_title(const file& file)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -398,7 +398,7 @@ hemplate::element write_file_title(const file& file)
   };
 }
 
-hemplate::element write_file_content(const file& file)
+element write_file_content(const file& file)
 {
   using namespace hemplate::html;  // NOLINT
 
@@ -433,25 +433,6 @@ hemplate::element write_file_content(const file& file)
   };
 }
 
-void write_html(std::ostream& ost, const file& file)
-{
-  static const auto process_output =
-      +[](const MD_CHAR* str, MD_SIZE size, void* data)
-  {
-    std::ofstream& ofs = *static_cast<std::ofstream*>(data);
-    ofs << std::string(str, size);
-  };
-
-  md_html(
-      file.get_content(),
-      static_cast<MD_SIZE>(file.get_size()),
-      process_output,
-      &ost,
-      MD_DIALECT_GITHUB,
-      0
-  );
-}
-
 void write_log(
     const std::filesystem::path& base,
     const repository& repo,
@@ -464,7 +445,7 @@ void write_log(
           ofs,
           [&]()
           {
-            return hemplate::element {
+            return element {
                 page_title(repo, branch),
                 commit_table(branch),
             };
@@ -483,7 +464,7 @@ void write_file(
       ofs,
       [&]()
       {
-        return hemplate::element {
+        return element {
             page_title(repo, branch),
             files_table(branch),
         };
@@ -502,7 +483,7 @@ void write_refs(
       ofs,
       [&]()
       {
-        return hemplate::element {
+        return element {
             page_title(repo, branch),
             branch_table(repo, branch.get_name()),
             tag_table(repo),
@@ -530,7 +511,7 @@ bool write_commits(
         ofs,
         [&]()
         {
-          return hemplate::element {
+          return element {
               page_title(repo, branch, "../"),
               commit_diff(commit),
           };
@@ -565,7 +546,7 @@ void write_files(
         ofs,
         [&]()
         {
-          return hemplate::element {
+          return element {
               page_title(repo, branch, relpath),
               write_file_title(file),
               write_file_content(file),
@@ -583,23 +564,33 @@ void write_readme_licence(
 {
   for (const auto& file : branch.get_special()) {
     std::ofstream ofs(base / file.get_path().replace_extension("html"));
-    std::stringstream sstr;
     document {repo, branch, file.get_path().string()}.render(
-        sstr,
+        ofs,
         [&]()
         {
-          return hemplate::element {
+          std::string html;
+
+          static const auto process_output =
+              +[](const MD_CHAR* str, MD_SIZE size, void* data)
+          {
+            auto buffer = *static_cast<std::string*>(data);
+            buffer += std::string(str, size);
+          };
+
+          md_html(
+              file.get_content(),
+              static_cast<MD_SIZE>(file.get_size()),
+              process_output,
+              &html,
+              MD_DIALECT_GITHUB,
+              0
+          );
+          return element {
               page_title(repo, branch),
+              html,
           };
         }
     );
-
-    const std::string data = sstr.str();
-    const auto pos = data.find("hr /") + 6;
-
-    ofs << data.substr(0, pos);
-    write_html(ofs, file);
-    ofs << data.substr(pos);
   }
 }
 
@@ -610,25 +601,21 @@ void write_atom(
   using namespace hemplate::atom;  // NOLINT
   using hemplate::atom::link;
 
-  const hemplate::attribute_list self = {
-      {"href", base_url + "/atom.xml"},
-      {"rel", "self"},
-  };
-
-  const hemplate::attribute_list alter = {
-      {"href", args.resource_url},
-      {"rel", "alternate"},
-      {"type", "text/html"},
-  };
-
   ost << feed {
       title {args.title},
       subtitle {args.description},
       id {base_url + '/'},
       updated {format_time_now()},
       author {name {args.author}},
-      link {self, " "},
-      link {alter, " "},
+      link {{
+          {"href", base_url + "/atom.xml"},
+          {"rel", "self"},
+      }},
+      link {{
+          {"href", args.resource_url},
+          {"rel", "alternate"},
+          {"type", "text/html"},
+      }},
       transform(
           branch.get_commits(),
           [&](const auto& commit)
@@ -640,7 +627,7 @@ void write_atom(
                 id {url},
                 updated {format_time(commit.get_time_raw())},
                 title {commit.get_summary()},
-                link {{{"href", url}}, " "},
+                link {{{"href", url}}},
                 author {
                     name {commit.get_author_name()},
                     email {commit.get_author_email()},
@@ -668,7 +655,7 @@ void write_rss(
           link {base_url + '/'},
           generator {"startgit"},
           language {"en-us"},
-          atomLink {{{"href", base_url + "/atom.xml"}}},
+          atomLink {base_url + "/atom.xml"},
           transform(
               branch.get_commits(),
               [&](const auto& commit)

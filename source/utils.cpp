@@ -38,13 +38,13 @@ void xmlencode(std::ostream& ost, const std::string& str)
 {
     for (const char c: str) {
         switch(c) {
-        case '<':  ost << "&lt;"; break;
-        case '>':  ost << "&gt;"; break;
-        case '\'': ost << "&#39;"; break;
-        case '&':  ost << "&amp;"; break;
-        case '"':  ost << "&quot;"; break;
-        default:   ost << c;
+        case '<':  ost << "&lt;"; continue;
+        case '>':  ost << "&gt;"; continue;
+        case '\'': ost << "&#39;"; continue;
+        case '&':  ost << "&amp;"; continue;
+        case '"':  ost << "&quot;"; continue;
         }
+        ost << c;
     }
 }
 
@@ -55,13 +55,13 @@ std::string xmlencode(const std::string& str)
     res.reserve(str.size());
     for (const char c: str) {
         switch(c) {
-        case '<':  res += "&lt;"; break;
-        case '>':  res += "&gt;"; break;
-        case '\'': res += "&#39;"; break;
-        case '&':  res += "&amp;"; break;
-        case '"':  res += "&quot;"; break;
-        default:   res += c;
+        case '<':  res += "&lt;"; continue;
+        case '>':  res += "&gt;"; continue;
+        case '\'': res += "&#39;"; continue;
+        case '&':  res += "&amp;"; continue;
+        case '"':  res += "&quot;"; continue;
         }
+        res += c;
     }
 
     return res;

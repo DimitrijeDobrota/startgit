@@ -42,7 +42,10 @@ branch::branch(git2wrap::branch brnch, repository& repo)
         case GIT_OBJ_TREE:
           traverse(entry.to_tree(), full_path);
           continue;
-        default:
+        case GIT_OBJECT_ANY:
+        case GIT_OBJECT_INVALID:
+        case GIT_OBJECT_COMMIT:
+        case GIT_OBJECT_TAG:
           continue;
       }
 

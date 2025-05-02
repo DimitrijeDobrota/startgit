@@ -50,7 +50,7 @@ void document::render(std::ostream& ost, const content_t& content) const
               }},
 
               // Rss feed
-              !m_has_feed ? element {} : [&]() -> hemplate::element
+              !m_has_feed ? element {} : [&]() -> element
               {
                 return link {{
                     {"rel", "alternate"},
@@ -61,7 +61,7 @@ void document::render(std::ostream& ost, const content_t& content) const
               }(),
 
               // Atom feed
-              !m_has_feed ? element {} : [&]() -> hemplate::element
+              !m_has_feed ? element {} : [&]() -> element
               {
                 return link {{
                     {"rel", "alternate"},

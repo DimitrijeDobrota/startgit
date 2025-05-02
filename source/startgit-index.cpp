@@ -10,6 +10,66 @@
 #include "arguments.hpp"
 #include "document.hpp"
 #include "repository.hpp"
+namespace startgit
+{
+
+hemplate::element write_table_row(const std::filesystem::path& repo_path)
+{
+  using namespace hemplate::html;  // NOLINT
+
+  try {
+    const repository repo(repo_path);
+
+    for (const auto& branch : repo.get_branches()) {
+      if (branch.get_name() != "master") {
+        continue;
+      }
+
+      const auto url = repo.get_name() + "/master/log.html";
+      return tr {
+          td {a {{{"href", url}}, repo.get_name()}},
+          td {repo.get_description()},
+          td {repo.get_owner()},
+          td {branch.get_commits()[0].get_time()},
+      };
+    }
+
+    std::cerr << std::format(
+        "Warning: {} doesn't have master branch\n", repo.get_path().string()
+    );
+  } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
+    std::cerr << std::format(
+        "Warning: {} is not a repository\n", repo_path.string()
+    );
+  }
+
+  return element {};
+}
+
+hemplate::element write_table()
+{
+  using namespace hemplate::html;  // NOLINT
+
+  return element {
+      h1 {args.title},
+      p {args.description},
+      table {
+          thead {
+              tr {
+                  td {"Name"},
+                  td {"Description"},
+                  td {"Owner"},
+                  td {"Last commit"},
+              },
+          },
+          tbody {
+              transform(args.repos, write_table_row),
+          },
+      }
+  };
+}
+
+}  // namespace startgit
 
 namespace
 {
@@ -90,67 +150,6 @@ static const poafloc::arg_t arg {
 // NOLINTEND
 
 }  // namespace
-
-namespace startgit
-{
-
-hemplate::element write_table_row(const std::filesystem::path& repo_path)
-{
-  using namespace hemplate::html;  // NOLINT
-
-  try {
-    const repository repo(repo_path);
-
-    for (const auto& branch : repo.get_branches()) {
-      if (branch.get_name() != "master") {
-        continue;
-      }
-
-      const auto url = repo.get_name() + "/master/log.html";
-      return tr {
-          td {a {{{"href", url}}, repo.get_name()}},
-          td {repo.get_description()},
-          td {repo.get_owner()},
-          td {branch.get_commits()[0].get_time()},
-      };
-    }
-
-    std::cerr << std::format(
-        "Warning: {} doesn't have master branch\n", repo.get_path().string()
-    );
-  } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
-    std::cerr << std::format(
-        "Warning: {} is not a repository\n", repo_path.string()
-    );
-  }
-
-  return element {};
-}
-
-hemplate::element write_table()
-{
-  using namespace hemplate::html;  // NOLINT
-
-  return element {
-      h1 {args.title},
-      p {args.description},
-      table {
-          thead {
-              tr {
-                  td {"Name"},
-                  td {"Description"},
-                  td {"Owner"},
-                  td {"Last commit"},
-              },
-          },
-          tbody {
-              transform(args.repos, write_table_row),
-          },
-      }
-  };
-}
-
-}  // namespace startgit
 
 int main(int argc, char* argv[])
 {
