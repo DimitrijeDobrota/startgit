@@ -27,7 +27,7 @@ hemplate::element write_table_row(const std::filesystem::path& repo_path)
 
       const auto url = repo.get_name() + "/master/log.html";
       return tr {
-          td {a {{{"href", url}}, repo.get_name()}},
+          td {aHref {url, repo.get_name()}},
           td {repo.get_description()},
           td {repo.get_owner()},
           td {branch.get_commits()[0].get_time()},

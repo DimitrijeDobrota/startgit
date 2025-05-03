@@ -76,16 +76,16 @@ element page_title(
           tr {
               td {
                   "git clone ",
-                  a {{{"href", repo.get_url()}}, repo.get_url()},
+                  aHref {repo.get_url(), repo.get_url()},
               },
           },
           tr {
               td {
-                  a {{{"href", relpath + "log.html"}}, "Log"},
+                  aHref {relpath + "log.html", "Log"},
                   " | ",
-                  a {{{"href", relpath + "files.html"}}, "Files"},
+                  aHref {relpath + "files.html", "Files"},
                   " | ",
-                  a {{{"href", relpath + "refs.html"}}, "Refs"},
+                  aHref {relpath + "refs.html", "Refs"},
                   transform(
                       branch.get_special(),
                       [&](const auto& file)
@@ -97,7 +97,7 @@ element page_title(
 
                         return element {
                             " | ",
-                            a {{{"href", relpath + filename}}, name},
+                            aHref {relpath + filename, name},
                         };
                       }
                   ),
@@ -122,7 +122,7 @@ element commit_table(const branch& branch)
 
         return tr {
             td {commit.get_time()},
-            td {a {{{"href", url}}, commit.get_summary()}},
+            td {aHref {url, commit.get_summary()}},
             td {commit.get_author_name()},
             td {commit.get_diff().get_files_changed()},
             td {commit.get_diff().get_insertions()},
@@ -149,7 +149,7 @@ element files_table(const branch& branch)
 
         return tr {
             td {file.get_filemode()},
-            td {a {{{"href", url}}, path}},
+            td {aHref {url, path}},
             td {size},
         };
       }
@@ -175,7 +175,7 @@ element branch_table(const repository& repo, const std::string& branch_name)
 
             return tr {
                 td {name},
-                td {a {{{"href", url}}, branch.get_name()}},
+                td {aHref {url, branch.get_name()}},
                 td {last.get_time()},
                 td {last.get_author_name()},
             };
@@ -239,7 +239,7 @@ element file_changes(const diff& diff)
 
             return tr {
                 td {std::string(1, marker[delta->status])},  // NOLINT
-                td {a {{{"href", link}}, delta->new_file.path}},
+                td {aHref {link, delta->new_file.path}},
                 td {"|"},
                 td {
                     span {{{"class", "add"}}, std::string(add, '+')},
@@ -325,9 +325,9 @@ element file_diffs(const diff& diff)
                 {{"id", delta->new_file.path}},
                 "diff --git",
                 "a/",
-                a {{{"href", new_link}}, new_file},
+                aHref {new_link, new_file},
                 "b/",
-                a {{{"href", old_link}}, old_file},
+                aHref {old_link, old_file},
             },
             transform(delta.get_hunks(), diff_hunk),
         };
@@ -347,7 +347,7 @@ element commit_diff(const commit& commit)
           tbody {
               tr {
                   td {b {"commit"}},
-                  td {a {{{"href", url}}, commit.get_id()}},
+                  td {aHref {url, commit.get_id()}},
               },
               commit.get_parentcount() == 0 ? element {} : [&]() -> element
               {
@@ -356,7 +356,7 @@ element commit_diff(const commit& commit)
 
                 return tr {
                     td {b {"parent"}},
-                    td {a {{{"href", purl}}, commit.get_parent_id()}},
+                    td {aHref {purl, commit.get_parent_id()}},
                 };
               }(),
               tr {
@@ -364,10 +364,7 @@ element commit_diff(const commit& commit)
                   td {
                       commit.get_author_name(),
                       "&lt;",
-                      a {
-                          {{"href", mailto}},
-                          commit.get_author_email(),
-                      },
+                      aHref {mailto, commit.get_author_email()},
                       "&gt;",
                   },
               },
@@ -611,15 +608,8 @@ void write_atom(
       id {base_url + '/'},
       updated {format_time_now()},
       author {name {args.author}},
-      link {{
-          {"href", base_url + "/atom.xml"},
-          {"rel", "self"},
-      }},
-      link {{
-          {"href", args.resource_url},
-          {"rel", "alternate"},
-          {"type", "text/html"},
-      }},
+      linkSelf {base_url + "/atom.xml"},
+      linkAlternate {args.resource_url},
       transform(
           branch.get_commits(),
           [&](const auto& commit)
@@ -631,7 +621,7 @@ void write_atom(
                 id {url},
                 updated {format_time(commit.get_time_raw())},
                 title {commit.get_summary()},
-                link {{{"href", url}}},
+                linkHref {url},
                 author {
                     name {commit.get_author_name()},
                     email {commit.get_author_email()},
