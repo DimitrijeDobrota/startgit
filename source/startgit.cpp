@@ -829,7 +829,7 @@ int main(int argc, char* argv[])
       std::ofstream rss(base_branch / "rss.xml");
       write_rss(rss, branch, absolute);
     }
-  } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
+  } catch (const git2wrap::error<git2wrap::error_code_t::enotfound>& err) {
     std::cerr << std::format(
         "Warning: {} is not a repository\n", args.repos[0].string()
     );

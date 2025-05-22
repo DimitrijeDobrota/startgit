@@ -8,7 +8,7 @@ namespace startgit
 repository::repository(const std::filesystem::path& path)
     : m_path(path)
     , m_repo(git2wrap::repository::open(
-          path.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr
+          path.c_str(), git2wrap::repository::flags_open::no_search, nullptr
       ))
     , m_name(path.stem().string())
     , m_url(read_file(path, "url"))
@@ -16,7 +16,7 @@ repository::repository(const std::filesystem::path& path)
     , m_description(read_file(path, "description"))
 {
   // Get branches
-  for (auto it = m_repo.branch_begin(GIT_BRANCH_LOCAL);
+  for (auto it = m_repo.branch_begin(git2wrap::branch::flags_list::local);
        it != m_repo.branch_end();
        ++it)
   {

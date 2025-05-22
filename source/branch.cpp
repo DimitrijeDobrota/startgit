@@ -36,16 +36,17 @@ branch::branch(git2wrap::branch brnch, repository& repo)
       const auto full_path =
           (!path.empty() ? path + "/" : "") + entry.get_name();
 
-      switch (entry.get_type()) {
-        case GIT_OBJ_BLOB:
+      using object_type = git2wrap::object::object_type;
+      switch (entry.get_type()()) {
+        case object_type::blob():
           break;
-        case GIT_OBJ_TREE:
+        case object_type::tree():
           traverse(entry.to_tree(), full_path);
           continue;
-        case GIT_OBJECT_ANY:
-        case GIT_OBJECT_INVALID:
-        case GIT_OBJECT_COMMIT:
-        case GIT_OBJECT_TAG:
+        case object_type::any():
+        case object_type::invalid():
+        case object_type::commit():
+        case object_type::tag():
           continue;
       }
 

@@ -10,6 +10,7 @@
 #include "arguments.hpp"
 #include "document.hpp"
 #include "repository.hpp"
+
 namespace startgit
 {
 
@@ -37,7 +38,7 @@ hemplate::element write_table_row(const std::filesystem::path& repo_path)
     std::cerr << std::format(
         "Warning: {} doesn't have master branch\n", repo.get_path().string()
     );
-  } catch (const git2wrap::error<git2wrap::error_code_t::ENOTFOUND>& err) {
+  } catch (const git2wrap::error<git2wrap::error_code_t::enotfound>& err) {
     std::cerr << std::format(
         "Warning: {} is not a repository\n", repo_path.string()
     );

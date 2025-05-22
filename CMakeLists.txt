@@ -15,7 +15,8 @@ include(cmake/variables.cmake)
 
 # ---- Declare dependencies ----
 
-find_package(git2wrap CONFIG REQUIRED)
+find_package(based 0.2.0 CONFIG REQUIRED)
+find_package(git2wrap 0.3.0 CONFIG REQUIRED)
 find_package(hemplate 0.4 CONFIG REQUIRED)
 find_package(md4c CONFIG REQUIRED)
 find_package(poafloc 1.2 CONFIG REQUIRED)
@@ -36,7 +37,11 @@ add_library(
     source/utils.cpp
 )
 
-target_link_libraries(startgit_lib PUBLIC git2wrap::git2wrap hemplate::hemplate poafloc::poafloc md4c::md4c-html)
+target_link_libraries(startgit_lib PUBLIC based::based)
+target_link_libraries(startgit_lib PUBLIC git2wrap::git2wrap)
+target_link_libraries(startgit_lib PUBLIC hemplate::hemplate)
+target_link_libraries(startgit_lib PUBLIC poafloc::poafloc)
+target_link_libraries(startgit_lib PUBLIC md4c::md4c-html)
 
 target_include_directories(
     startgit_lib ${warning_guard}
