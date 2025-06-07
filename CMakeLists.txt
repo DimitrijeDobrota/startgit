@@ -17,7 +17,7 @@ include(cmake/variables.cmake)
 
 find_package(based 0.2.0 CONFIG REQUIRED)
 find_package(git2wrap 0.3.0 CONFIG REQUIRED)
-find_package(hemplate 0.4 CONFIG REQUIRED)
+find_package(hemplate 0.4.1 CONFIG REQUIRED)
 find_package(md4c CONFIG REQUIRED)
 find_package(poafloc 2.0 CONFIG REQUIRED)
 

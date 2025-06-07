@@ -8,8 +8,8 @@
 	{
       "kind": "git",
       "repository": "git://git.dimitrijedobrota.com/vcpkg-registry.git",
-      "baseline": "cc7113e63d7bb988a70e6b6dd91c5cd1af04bdfb",
-      "packages": [ "based", "hemplate", "git2wrap", "md4c" ]
+      "baseline": "5e9c3056f7cd9cc95ac11e37c9b8eee852f8bd36",
+      "packages": [ "based", "hemplate", "git2wrap", "poafloc" ]
     }
   ]
 }

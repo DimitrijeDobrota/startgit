@@ -25,10 +25,6 @@ sophisticated Markdown to HTML converter.
 
 * CMake 3.14 or latter
 * Compiler with C++20 support (tested: clang 18.1.8, gcc 14.2.1)
-* [`Git2Wrap 0.1.0`](https://github.com/DimitrijeDobrota/gitwrap)
-* [`Poafloc 1.0.0`](https://github.com/DimitrijeDobrota/poafloc)
-* [`Hemplate 0,2,2`](https://github.com/DimitrijeDobrota/hemplate)
-* [`md4c`](https://github.com/mity/md4c)
 
 
 ## Building and installing
@@ -43,16 +39,18 @@ See the [`BUILDING`](BUILDING.md) document.
 
 ## Version History
 
-- 0.2.1
+* 0.3
+    * Modernize the codebase using new hemplate
+* 0.2.1
     * Remove branch dropdown
     * Handle only one repository
     * Separate indexer
-- 0.2
+* 0.2
     * Files, commits and diffs for each branch
     * RSS and Atom feeds per branch
     * On demand evaluation
     * Github to local link translation
-- 0.1
+* 0.1
     * Initial development phase
 
 
