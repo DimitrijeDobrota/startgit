@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -10,6 +11,29 @@ namespace startgit
 
 struct arguments_t
 {
+  void add_special(std::string_view value) { special.insert(value); }
+
+  void set_repository(std::string_view value)
+  {
+    repos.emplace_back(std::filesystem::canonical(value));
+  }
+
+  void set_resource(std::string_view value)
+  {
+    resource_url = value;
+    if (resource_url.back() == '/') {
+      resource_url.pop_back();
+    }
+  }
+
+  void set_base(std::string_view value)
+  {
+    base_url = value;
+    if (base_url.back() == '/') {
+      base_url.pop_back();
+    }
+  }
+
   std::filesystem::path output_dir = ".";
   std::vector<std::filesystem::path> repos;
   std::string resource_url = "https://dimitrijedobrota.com";
