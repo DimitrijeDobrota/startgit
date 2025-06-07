@@ -557,7 +557,7 @@ void write_files(
   }
 }
 
-void write_readme_licence(
+void write_special(
     const std::filesystem::path& base,
     const repository& repo,
     const branch& branch
@@ -574,7 +574,7 @@ void write_readme_licence(
           static const auto process_output =
               +[](const MD_CHAR* str, MD_SIZE size, void* data)
           {
-            auto buffer = *static_cast<std::string*>(data);
+            auto& buffer = *static_cast<std::string*>(data);
             buffer += std::string(str, size);
           };
 
@@ -771,7 +771,7 @@ int main(int argc, const char* argv[])
 
       write_log(base_branch, repo, branch);
       write_file(base_branch, repo, branch);
-      write_readme_licence(base_branch, repo, branch);
+      write_special(base_branch, repo, branch);
 
       const std::filesystem::path file = base_branch / "file";
       std::filesystem::create_directory(file);
